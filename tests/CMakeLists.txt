@@ -1,0 +1,5 @@
+option(NTOS_BUILD_HOST_TESTS "Build host tests" OFF)
+if(NTOS_BUILD_HOST_TESTS)
+ add_subdirectory(host)
+endif()
+add_subdirectory(target)
