@@ -1,0 +1,69 @@
+[01;34m.[0m
+├── [01;34mbuild[0m
+│   ├── CMakeCache.txt
+│   ├── [01;34mCMakeFiles[0m
+│   │   ├── [01;34m3.28.3[0m
+│   │   │   ├── CMakeCCompiler.cmake
+│   │   │   ├── CMakeDetermineCompilerABI_C.bin
+│   │   │   ├── CMakeSystem.cmake
+│   │   │   └── [01;34mCompilerIdC[0m
+│   │   │       ├── CMakeCCompilerId.c
+│   │   │       ├── CMakeCCompilerId.o
+│   │   │       └── [01;34mtmp[0m
+│   │   ├── cmake.check_cache
+│   │   ├── CMakeConfigureLog.yaml
+│   │   ├── CMakeDirectoryInformation.cmake
+│   │   ├── [01;34mCMakeScratch[0m
+│   │   ├── [01;34mlesson_01_add_executable.dir[0m
+│   │   │   ├── build.make
+│   │   │   ├── cmake_clean.cmake
+│   │   │   ├── compiler_depend.make
+│   │   │   ├── compiler_depend.ts
+│   │   │   ├── DependInfo.cmake
+│   │   │   ├── depend.make
+│   │   │   ├── flags.make
+│   │   │   ├── [01;34mhome[0m
+│   │   │   │   └── [01;34mtohieu[0m
+│   │   │   │       └── [01;34mntos[0m
+│   │   │   │           ├── [01;34mbsp[0m
+│   │   │   │           │   └── [01;34mstm32f103c8[0m
+│   │   │   │           │       ├── [01;34mstartup[0m
+│   │   │   │           │       │   ├── startup_stm32f103.c.obj
+│   │   │   │           │       │   └── startup_stm32f103.c.obj.d
+│   │   │   │           │       └── [01;34msystem[0m
+│   │   │   │           │           ├── system_stm32f10x.c.obj
+│   │   │   │           │           └── system_stm32f10x.c.obj.d
+│   │   │   │           └── [01;34mdriver[0m
+│   │   │   │               └── [01;34mSTM32F10x_StdPeriph_Driver[0m
+│   │   │   │                   └── [01;34msrc[0m
+│   │   │   │                       ├── stm32f10x_gpio.c.obj
+│   │   │   │                       ├── stm32f10x_gpio.c.obj.d
+│   │   │   │                       ├── stm32f10x_rcc.c.obj
+│   │   │   │                       └── stm32f10x_rcc.c.obj.d
+│   │   │   ├── link.txt
+│   │   │   ├── main.c.obj
+│   │   │   ├── main.c.obj.d
+│   │   │   └── progress.make
+│   │   ├── Makefile2
+│   │   ├── Makefile.cmake
+│   │   ├── [01;34mpkgRedirects[0m
+│   │   ├── [01;34mProgress[0m
+│   │   │   ├── 1
+│   │   │   ├── 2
+│   │   │   ├── 3
+│   │   │   ├── 4
+│   │   │   ├── 5
+│   │   │   ├── 6
+│   │   │   └── count.txt
+│   │   ├── progress.marks
+│   │   └── TargetDirectories.txt
+│   ├── cmake_install.cmake
+│   ├── compile_commands.json
+│   ├── lesson_01_add_executable.map
+│   └── Makefile
+├── [01;32mbuild.sh[0m
+├── CMakeLists.txt
+├── main.c
+└── tree.txt
+
+20 directories, 47 files
