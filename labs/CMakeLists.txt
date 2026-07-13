@@ -1,4 +1,22 @@
-add_subdirectory(01_exception_frame)
-add_subdirectory(02_msp_psp)
-add_subdirectory(03_svc)
-add_subdirectory(04_pendsv)
+# Bare-metal Cortex-M3 labs.
+ntos_add_firmware(lab_exception_frame
+    BARE_METAL
+    MAIN ${CMAKE_CURRENT_SOURCE_DIR}/01_exception_frame/main.c
+)
+
+ntos_add_firmware(lab_msp_psp
+    BARE_METAL
+    MAIN ${CMAKE_CURRENT_SOURCE_DIR}/02_msp_psp/main.c
+)
+
+ntos_add_firmware(lab_svc
+    BARE_METAL
+    MAIN ${CMAKE_CURRENT_SOURCE_DIR}/03_svc/main.c
+    SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/03_svc/lab_handler.S
+)
+
+ntos_add_firmware(lab_pendsv
+    BARE_METAL
+    MAIN ${CMAKE_CURRENT_SOURCE_DIR}/04_pendsv/main.c
+    SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/04_pendsv/lab_handler.S
+)
