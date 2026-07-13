@@ -69,8 +69,6 @@ void EXTI15_10_IRQHandler(void) __attribute__((weak, alias("Default_Handler")));
 void RTC_Alarm_IRQHandler(void) __attribute__((weak, alias("Default_Handler")));
 void USBWakeUp_IRQHandler(void) __attribute__((weak, alias("Default_Handler")));
 
-void __libc_init_array(void) __attribute__((weak));
-
 __attribute__((used, section(".isr_vector")))
 const isr_handler_t g_pfnVectors[] = {
     (isr_handler_t)&_estack,
@@ -149,10 +147,6 @@ void Reset_Handler(void)
     }
 
     SystemInit();
-
-    if (__libc_init_array != 0) {
-        __libc_init_array();
-    }
 
     (void)main();
 
