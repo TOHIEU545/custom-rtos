@@ -1,4 +1,4 @@
-#include <bsp/gpio.h>
+#include <gpio.h>
 void bsp_gpio_init(void) { /* TODO. */ }
 void bsp_led_set(bool on) { (void)on; /* TODO. */ }
 void bsp_led_toggle(void) { /* TODO. */ }
