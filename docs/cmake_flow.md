@@ -44,12 +44,9 @@ cmake -S . -B build -DCMAKE_TOOLCHAIN_FILE=cmake/arm-none-eabi-toolchain.cmake
 2. `project(ntos LANGUAGES C ASM)` — khai báo ngôn ngữ, kiểm tra compiler.
 3. `option(NTOS_BUILD_LABS ON)`, `option(NTOS_BUILD_EXAMPLES OFF)`,
    `option(NTOS_BUILD_TESTS OFF)` — 3 công tắc bật/tắt cả nhóm firmware.
-   Mặc định: chỉ build labs.
 4. `include(cmake/ntos_compiler_options.cmake)` và
    `include(cmake/ntos_firmware.cmake)` — **`include()` khác `add_subdirectory()`**:
-   nó chỉ nạp các lệnh `add_library()`/`function()` vào scope hiện tại (root),
-   không tạo thư mục con trong build-tree, không đổi
-   `CMAKE_CURRENT_SOURCE_DIR`.
+   nó chỉ nạp các lệnh `add_library()`/`function()` vào scope hiện tại (root)
 5. `add_subdirectory(cmsis)` → chạy `cmsis/CMakeLists.txt`.
 6. `add_subdirectory(bsp/stm32f10x)` → chạy `bsp/stm32f10x/CMakeLists.txt`
    (target này link `cmsis`, nên phải add sau bước 5).
@@ -58,13 +55,6 @@ cmake -S . -B build -DCMAKE_TOOLCHAIN_FILE=cmake/arm-none-eabi-toolchain.cmake
 8. Nếu `NTOS_BUILD_LABS=ON` (mặc định có): `add_subdirectory(labs)`.
 9. Nếu `NTOS_BUILD_EXAMPLES=ON`: `add_subdirectory(examples)`.
 10. Nếu `NTOS_BUILD_TESTS=ON`: `add_subdirectory(tests)`.
-
-Thứ tự add_subdirectory ở trên **phải** tôn trọng chiều phụ thuộc: một target
-chỉ có thể `target_link_libraries` một target đã được `add_library`/
-`add_executable` trước đó (hoặc ít nhất được biết tới trong cùng lượt
-configure — CMake thật ra cho phép khai báo library ở subdirectory nào cũng
-được miễn tên khớp, nhưng để dễ đọc, project này add theo đúng chiều phụ
-thuộc: vendor → platform → kernel/port → firmware).
 
 ---
 
@@ -97,13 +87,6 @@ Ba loại target xuất hiện trong project:
 | `INTERFACE` | `ntos_compiler_options`, `cmsis`, `ntos_platform_stm32f10x` | **Không file nào cả** — chỉ là túi thuộc tính (include dirs, defines, link options) | Không bao giờ tự build, chỉ propagate khi có ai link vào |
 | `STATIC` | `ntos_bsp`, `ntos_kernel`, `ntos_port` | `.a` (qua `ar`, không qua linker thật) | Khi có target nào đó (trực tiếp/gián tiếp) cần nó |
 | `EXECUTABLE` | `lab_exception_frame`, `example_basic_tasks`,... | `.elf` (qua `gcc` với đầy đủ cờ link, bao gồm `-T`) | Khi bạn `cmake --build --target <tên>` đúng tên đó |
-
-**Chỗ hay hiểu lầm nhất**: `target_link_options(ntos_platform_stm32f10x INTERFACE -T...)`
-ở `bsp/stm32f10x/CMakeLists.txt` **không link gì cả tại thời điểm đó**. Nó chỉ
-gắn nhãn "-T này thuộc về platform". Cờ `-T` chỉ thật sự xuất hiện trong lệnh
-`gcc` khi CMake build một `add_executable()` có link (trực tiếp hoặc gián
-tiếp qua chuỗi) tới `ntos_platform_stm32f10x`. Build `ntos_bsp` một mình chỉ
-gọi `ar`, không gọi `gcc -T` gì hết.
 
 ---
 
