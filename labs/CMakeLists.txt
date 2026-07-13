@@ -12,11 +12,4 @@ ntos_add_firmware(lab_msp_psp
 ntos_add_firmware(lab_svc
     BARE_METAL
     MAIN ${CMAKE_CURRENT_SOURCE_DIR}/03_svc/main.c
-    SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/03_svc/lab_handler.S
-)
-
-ntos_add_firmware(lab_pendsv
-    BARE_METAL
-    MAIN ${CMAKE_CURRENT_SOURCE_DIR}/04_pendsv/main.c
-    SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/04_pendsv/lab_handler.S
 )
