@@ -1,17 +1,16 @@
 ntos/
 ├── bsp
-│   └── stm32f103c8
+│   └── stm32f10x
 │       ├── include
-│       │   └── bsp
-│       │       ├── board.h
-│       │       ├── clock.h
-│       │       ├── exti.h
-│       │       ├── gpio.h
-│       │       └── uart.h
+│       │   ├── board.h
+│       │   ├── clock.h
+│       │   ├── exti.h
+│       │   ├── gpio.h
+│       │   └── uart.h
 │       ├── internal
 │       │   └── README.md
 │       ├── linker
-│       │   └── stm32f103c8.ld
+│       │   └── stm32f10x.ld
 │       ├── src
 │       │   ├── board.c
 │       │   ├── clock.c
@@ -19,17 +18,28 @@ ntos/
 │       │   ├── gpio.c
 │       │   └── uart.c
 │       ├── startup
-│       │   └── startup_stm32f103xb.S
+│       │   └── startup_stm32f103.c
 │       ├── system
-│       │   └── system_stm32f103.c
+│       │   └── system_stm32f10x.c
 │       └── CMakeLists.txt
 ├── cmake
 │   ├── arm-none-eabi-toolchain.cmake
 │   ├── ntos_compiler_options.cmake
 │   └── ntos_firmware.cmake
+├── cmsis
+│   ├── Device
+│   │   └── ST
+│   │       └── STM32F1xx
+│   │           └── Include
+│   │               ├── stm32f10x.h
+│   │               └── system_stm32f10x.h
+│   ├── Include
+│   │   └── ... (CMSIS core headers: core_cm3.h, cmsis_gcc.h, ...)
+│   └── CMakeLists.txt
 ├── docs
 │   ├── learning_log
 │   │   └── template.md
+│   ├── cmake_fundamentals.md
 │   ├── context_switch.md
 │   ├── ipc.md
 │   ├── known_limitations.md
@@ -99,20 +109,16 @@ ntos/
 │   └── ntos_task.c
 ├── labs
 │   ├── 01_exception_frame
-│   │   ├── CMakeLists.txt
 │   │   ├── main.c
 │   │   └── README.md
 │   ├── 02_msp_psp
-│   │   ├── CMakeLists.txt
 │   │   ├── main.c
 │   │   └── README.md
 │   ├── 03_svc
-│   │   ├── CMakeLists.txt
 │   │   ├── lab_handler.S
 │   │   ├── main.c
 │   │   └── README.md
 │   ├── 04_pendsv
-│   │   ├── CMakeLists.txt
 │   │   ├── lab_handler.S
 │   │   ├── main.c
 │   │   └── README.md
@@ -152,20 +158,6 @@ ntos/
 │   │   ├── test_stack_guard.c
 │   │   └── test_tick_overflow.c
 │   ├── CMakeLists.txt
-│   └── README.md
-├── third_party
-│   ├── cmsis
-│   │   ├── CMSIS
-│   │   │   └── Core
-│   │   │       └── Include
-│   │   │           └── .gitkeep
-│   │   ├── Device
-│   │   │   └── ST
-│   │   │       └── STM32F1xx
-│   │   │           └── Include
-│   │   │               └── .gitkeep
-│   │   ├── CMakeLists.txt
-│   │   └── README.md
 │   └── README.md
 ├── tools
 │   ├── gdb

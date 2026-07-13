@@ -11,3 +11,7 @@
 .project
 .cproject
 .DS_Store
+
+*/build/
+
+build/

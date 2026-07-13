@@ -4,7 +4,8 @@ Canonical implementation:
 - `include/ntos/`
 - `kernel/`
 - `port/cortex_m3/`
-- `bsp/stm32f103c8/`
+- `bsp/stm32f10x/`
+- `cmsis/`
 
 Do not inspect `labs/`, `examples/`, `tests/`, or `docs/` unless the task explicitly requires them.
 `labs/` contains isolated Cortex-M experiments and is not the ntos kernel.
