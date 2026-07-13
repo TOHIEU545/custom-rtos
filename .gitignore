@@ -6,7 +6,8 @@
 *.map
 *.o
 *.a
-.vscode/
+.vscode/*
+!.vscode/launch.json
 .idea/
 .project
 .cproject
@@ -15,3 +16,5 @@
 */build/
 
 build/
+
+.vscode/
