@@ -1,6 +1,15 @@
 #ifndef NTOS_STATUS_H
 #define NTOS_STATUS_H
-typedef enum {
+/**
+ * @file ntos_status.h
+ * @brief Mã trạng thái trả về dùng chung cho toàn bộ public API của NTOS.
+ */
+
+/**
+ * @brief Các mã trạng thái trả về của NTOS.
+ */
+typedef enum
+{
     NTOS_OK = 0,
     NTOS_ERR_INVALID_ARGUMENT,
     NTOS_ERR_INVALID_STATE,
@@ -12,4 +21,5 @@ typedef enum {
     NTOS_ERR_RESOURCE_FULL,
     NTOS_ERR_INTERNAL
 } ntos_status_t;
+
 #endif
