@@ -1,171 +1,853 @@
-ntos/
-├── bsp
-│   └── stm32f10x
-│       ├── include
-│       │   ├── board.h
-│       │   ├── clock.h
-│       │   ├── exti.h
-│       │   ├── gpio.h
-│       │   └── uart.h
-│       ├── internal
-│       │   └── README.md
-│       ├── linker
-│       │   └── stm32f10x.ld
-│       ├── src
-│       │   ├── board.c
-│       │   ├── clock.c
-│       │   ├── exti.c
-│       │   ├── gpio.c
-│       │   └── uart.c
-│       ├── startup
-│       │   └── startup_stm32f103.c
-│       ├── system
-│       │   └── system_stm32f10x.c
-│       └── CMakeLists.txt
-├── cmake
-│   ├── arm-none-eabi-toolchain.cmake
-│   ├── ntos_compiler_options.cmake
-│   └── ntos_firmware.cmake
-├── cmsis
-│   ├── Device
-│   │   └── ST
-│   │       └── STM32F1xx
-│   │           └── Include
-│   │               ├── stm32f10x.h
-│   │               └── system_stm32f10x.h
-│   ├── Include
-│   │   └── ... (CMSIS core headers: core_cm3.h, cmsis_gcc.h, ...)
-│   └── CMakeLists.txt
-├── docs
-│   ├── learning_log
-│   │   └── template.md
-│   ├── cmake_fundamentals.md
-│   ├── context_switch.md
-│   ├── ipc.md
-│   ├── known_limitations.md
-│   ├── ntos_design.md
-│   ├── ntos_roadmap.md
-│   ├── README.md
-│   ├── scheduler.md
-│   ├── task_states.md
-│   └── testing.md
-├── examples
-│   ├── 01_basic_tasks
-│   │   ├── CMakeLists.txt
-│   │   ├── main.c
-│   │   ├── ntos_config.h
-│   │   └── README.md
-│   ├── 02_preemptive
-│   │   ├── CMakeLists.txt
-│   │   ├── main.c
-│   │   ├── ntos_config.h
-│   │   └── README.md
-│   ├── 03_priority
-│   │   ├── CMakeLists.txt
-│   │   ├── main.c
-│   │   ├── ntos_config.h
-│   │   └── README.md
-│   ├── 04_delay
-│   │   ├── CMakeLists.txt
-│   │   ├── main.c
-│   │   ├── ntos_config.h
-│   │   └── README.md
-│   ├── 05_semaphore_button
-│   │   ├── CMakeLists.txt
-│   │   ├── main.c
-│   │   ├── ntos_config.h
-│   │   └── README.md
-│   ├── 06_uart_queue
-│   │   ├── CMakeLists.txt
-│   │   ├── main.c
-│   │   ├── ntos_config.h
-│   │   └── README.md
-│   ├── 07_full_demo
-│   │   ├── CMakeLists.txt
-│   │   ├── main.c
-│   │   ├── ntos_config.h
-│   │   └── README.md
-│   ├── CMakeLists.txt
-│   └── README.md
-├── include
-│   └── ntos
-│       ├── ntos.h
-│       ├── ntos_config_default.h
-│       ├── ntos_queue.h
-│       ├── ntos_sem.h
-│       ├── ntos_status.h
-│       ├── ntos_task.h
-│       └── ntos_types.h
-├── kernel
-│   ├── internal
-│   │   ├── ntos_assert_internal.h
-│   │   ├── ntos_kernel_internal.h
-│   │   ├── ntos_list_internal.h
-│   │   └── ntos_task_internal.h
-│   ├── CMakeLists.txt
-│   ├── ntos_assert.c
-│   ├── ntos_kernel.c
-│   ├── ntos_list.c
-│   └── ntos_task.c
-├── labs
-│   ├── 01_exception_frame
-│   │   ├── main.c
-│   │   └── README.md
-│   ├── 02_msp_psp
-│   │   ├── main.c
-│   │   └── README.md
-│   ├── 03_svc
-│   │   ├── lab_handler.S
-│   │   ├── main.c
-│   │   └── README.md
-│   ├── 04_pendsv
-│   │   ├── lab_handler.S
-│   │   ├── main.c
-│   │   └── README.md
-│   ├── CMakeLists.txt
-│   └── README.md
-├── port
-│   └── cortex_m3
-│       ├── CMakeLists.txt
-│       ├── ntos_port.c
-│       ├── ntos_port.h
-│       └── ntos_port_asm.S
-├── scripts
-│   ├── build.sh
-│   ├── clean.sh
-│   ├── debug.sh
-│   └── flash.sh
-├── tests
-│   ├── host
-│   │   ├── CMakeLists.txt
-│   │   ├── test_list.c
-│   │   ├── test_priority.c
-│   │   ├── test_ring_buffer.c
-│   │   └── test_tick.c
-│   ├── support
-│   │   ├── ntos_test.h
-│   │   └── ntos_test_hooks.h
-│   ├── target
-│   │   ├── CMakeLists.txt
-│   │   ├── test_context_switch.c
-│   │   ├── test_delay.c
-│   │   ├── test_initial_stack.c
-│   │   ├── test_preemption.c
-│   │   ├── test_priority.c
-│   │   ├── test_queue.c
-│   │   ├── test_register_preservation.c
-│   │   ├── test_semaphore.c
-│   │   ├── test_stack_guard.c
-│   │   └── test_tick_overflow.c
-│   ├── CMakeLists.txt
-│   └── README.md
-├── tools
-│   ├── gdb
-│   │   └── ntos.gdb
-│   └── openocd
-│       └── stm32f103.cfg
-├── .gitignore
+[01;34m.[0m
 ├── AGENTS.md
-├── CHANGELOG.md
+├── [01;34mbsp[0m
+│   └── [01;34mstm32f10x[0m
+│       ├── CMakeLists.txt
+│       ├── [01;34minclude[0m
+│       │   ├── board.h
+│       │   ├── clock.h
+│       │   ├── exti.h
+│       │   ├── gpio.h
+│       │   └── uart.h
+│       ├── [01;34minternal[0m
+│       │   └── README.md
+│       ├── [01;34mlinker[0m
+│       │   └── stm32f10x.ld
+│       ├── [01;34msrc[0m
+│       │   ├── board.c
+│       │   ├── clock.c
+│       │   ├── exti.c
+│       │   ├── gpio.c
+│       │   └── uart.c
+│       ├── [01;34mstartup[0m
+│       │   └── startup_stm32f103.c
+│       └── [01;34msystem[0m
+│           └── system_stm32f10x.c
+├── [01;34mbuild[0m
+│   ├── [01;34mbsp[0m
+│   │   └── [01;34mstm32f10x[0m
+│   │       ├── [01;34mCMakeFiles[0m
+│   │       │   ├── CMakeDirectoryInformation.cmake
+│   │       │   ├── [01;34mntos_bsp.dir[0m
+│   │       │   │   ├── build.make
+│   │       │   │   ├── cmake_clean.cmake
+│   │       │   │   ├── cmake_clean_target.cmake
+│   │       │   │   ├── compiler_depend.make
+│   │       │   │   ├── compiler_depend.ts
+│   │       │   │   ├── DependInfo.cmake
+│   │       │   │   ├── depend.make
+│   │       │   │   ├── flags.make
+│   │       │   │   ├── link.txt
+│   │       │   │   ├── progress.make
+│   │       │   │   ├── [01;34msrc[0m
+│   │       │   │   ├── [01;34mstartup[0m
+│   │       │   │   └── [01;34msystem[0m
+│   │       │   └── progress.marks
+│   │       ├── cmake_install.cmake
+│   │       └── Makefile
+│   ├── CMakeCache.txt
+│   ├── [01;34mCMakeFiles[0m
+│   │   ├── [01;34m3.28.3[0m
+│   │   │   ├── CMakeASMCompiler.cmake
+│   │   │   ├── CMakeCCompiler.cmake
+│   │   │   ├── CMakeDetermineCompilerABI_C.bin
+│   │   │   ├── CMakeSystem.cmake
+│   │   │   ├── [01;34mCompilerIdASM[0m
+│   │   │   └── [01;34mCompilerIdC[0m
+│   │   │       ├── CMakeCCompilerId.c
+│   │   │       ├── CMakeCCompilerId.o
+│   │   │       └── [01;34mtmp[0m
+│   │   ├── cmake.check_cache
+│   │   ├── CMakeConfigureLog.yaml
+│   │   ├── CMakeDirectoryInformation.cmake
+│   │   ├── [01;34mCMakeScratch[0m
+│   │   ├── Makefile2
+│   │   ├── Makefile.cmake
+│   │   ├── [01;34mpkgRedirects[0m
+│   │   ├── progress.marks
+│   │   └── TargetDirectories.txt
+│   ├── cmake_install.cmake
+│   ├── [01;34mcmsis[0m
+│   │   ├── [01;34mCMakeFiles[0m
+│   │   │   ├── CMakeDirectoryInformation.cmake
+│   │   │   └── progress.marks
+│   │   ├── cmake_install.cmake
+│   │   └── Makefile
+│   ├── compile_commands.json
+│   ├── [01;34mexamples[0m
+│   │   ├── [01;34m01_basic_tasks[0m
+│   │   │   ├── [01;34mCMakeFiles[0m
+│   │   │   │   ├── CMakeDirectoryInformation.cmake
+│   │   │   │   ├── [01;34mexample_basic_tasks.dir[0m
+│   │   │   │   │   ├── build.make
+│   │   │   │   │   ├── cmake_clean.cmake
+│   │   │   │   │   ├── compiler_depend.make
+│   │   │   │   │   ├── compiler_depend.ts
+│   │   │   │   │   ├── DependInfo.cmake
+│   │   │   │   │   ├── depend.make
+│   │   │   │   │   ├── flags.make
+│   │   │   │   │   ├── link.txt
+│   │   │   │   │   └── progress.make
+│   │   │   │   └── progress.marks
+│   │   │   ├── cmake_install.cmake
+│   │   │   └── Makefile
+│   │   ├── [01;34m02_preemptive[0m
+│   │   │   ├── [01;34mCMakeFiles[0m
+│   │   │   │   ├── CMakeDirectoryInformation.cmake
+│   │   │   │   ├── [01;34mexample_preemptive.dir[0m
+│   │   │   │   │   ├── build.make
+│   │   │   │   │   ├── cmake_clean.cmake
+│   │   │   │   │   ├── compiler_depend.make
+│   │   │   │   │   ├── compiler_depend.ts
+│   │   │   │   │   ├── DependInfo.cmake
+│   │   │   │   │   ├── depend.make
+│   │   │   │   │   ├── flags.make
+│   │   │   │   │   ├── link.txt
+│   │   │   │   │   └── progress.make
+│   │   │   │   └── progress.marks
+│   │   │   ├── cmake_install.cmake
+│   │   │   └── Makefile
+│   │   ├── [01;34m03_priority[0m
+│   │   │   ├── [01;34mCMakeFiles[0m
+│   │   │   │   ├── CMakeDirectoryInformation.cmake
+│   │   │   │   ├── [01;34mexample_priority.dir[0m
+│   │   │   │   │   ├── build.make
+│   │   │   │   │   ├── cmake_clean.cmake
+│   │   │   │   │   ├── compiler_depend.make
+│   │   │   │   │   ├── compiler_depend.ts
+│   │   │   │   │   ├── DependInfo.cmake
+│   │   │   │   │   ├── depend.make
+│   │   │   │   │   ├── flags.make
+│   │   │   │   │   ├── link.txt
+│   │   │   │   │   └── progress.make
+│   │   │   │   └── progress.marks
+│   │   │   ├── cmake_install.cmake
+│   │   │   └── Makefile
+│   │   ├── [01;34m04_delay[0m
+│   │   │   ├── [01;34mCMakeFiles[0m
+│   │   │   │   ├── CMakeDirectoryInformation.cmake
+│   │   │   │   ├── [01;34mexample_delay.dir[0m
+│   │   │   │   │   ├── build.make
+│   │   │   │   │   ├── cmake_clean.cmake
+│   │   │   │   │   ├── compiler_depend.make
+│   │   │   │   │   ├── compiler_depend.ts
+│   │   │   │   │   ├── DependInfo.cmake
+│   │   │   │   │   ├── depend.make
+│   │   │   │   │   ├── flags.make
+│   │   │   │   │   ├── link.txt
+│   │   │   │   │   └── progress.make
+│   │   │   │   └── progress.marks
+│   │   │   ├── cmake_install.cmake
+│   │   │   └── Makefile
+│   │   ├── [01;34m05_semaphore_button[0m
+│   │   │   ├── [01;34mCMakeFiles[0m
+│   │   │   │   ├── CMakeDirectoryInformation.cmake
+│   │   │   │   ├── [01;34mexample_semaphore_button.dir[0m
+│   │   │   │   │   ├── build.make
+│   │   │   │   │   ├── cmake_clean.cmake
+│   │   │   │   │   ├── compiler_depend.make
+│   │   │   │   │   ├── compiler_depend.ts
+│   │   │   │   │   ├── DependInfo.cmake
+│   │   │   │   │   ├── depend.make
+│   │   │   │   │   ├── flags.make
+│   │   │   │   │   ├── link.txt
+│   │   │   │   │   └── progress.make
+│   │   │   │   └── progress.marks
+│   │   │   ├── cmake_install.cmake
+│   │   │   └── Makefile
+│   │   ├── [01;34m06_uart_queue[0m
+│   │   │   ├── [01;34mCMakeFiles[0m
+│   │   │   │   ├── CMakeDirectoryInformation.cmake
+│   │   │   │   ├── [01;34mexample_uart_queue.dir[0m
+│   │   │   │   │   ├── build.make
+│   │   │   │   │   ├── cmake_clean.cmake
+│   │   │   │   │   ├── compiler_depend.make
+│   │   │   │   │   ├── compiler_depend.ts
+│   │   │   │   │   ├── DependInfo.cmake
+│   │   │   │   │   ├── depend.make
+│   │   │   │   │   ├── flags.make
+│   │   │   │   │   ├── link.txt
+│   │   │   │   │   └── progress.make
+│   │   │   │   └── progress.marks
+│   │   │   ├── cmake_install.cmake
+│   │   │   └── Makefile
+│   │   ├── [01;34m07_full_demo[0m
+│   │   │   ├── [01;34mCMakeFiles[0m
+│   │   │   │   ├── CMakeDirectoryInformation.cmake
+│   │   │   │   ├── [01;34mexample_full_demo.dir[0m
+│   │   │   │   │   ├── build.make
+│   │   │   │   │   ├── cmake_clean.cmake
+│   │   │   │   │   ├── compiler_depend.make
+│   │   │   │   │   ├── compiler_depend.ts
+│   │   │   │   │   ├── DependInfo.cmake
+│   │   │   │   │   ├── depend.make
+│   │   │   │   │   ├── flags.make
+│   │   │   │   │   ├── link.txt
+│   │   │   │   │   └── progress.make
+│   │   │   │   └── progress.marks
+│   │   │   ├── cmake_install.cmake
+│   │   │   └── Makefile
+│   │   ├── [01;34mCMakeFiles[0m
+│   │   │   ├── CMakeDirectoryInformation.cmake
+│   │   │   └── progress.marks
+│   │   ├── cmake_install.cmake
+│   │   └── Makefile
+│   ├── [01;34mkernel[0m
+│   │   ├── [01;34mCMakeFiles[0m
+│   │   │   ├── CMakeDirectoryInformation.cmake
+│   │   │   ├── [01;34mntos_kernel.dir[0m
+│   │   │   │   ├── build.make
+│   │   │   │   ├── cmake_clean.cmake
+│   │   │   │   ├── cmake_clean_target.cmake
+│   │   │   │   ├── compiler_depend.make
+│   │   │   │   ├── compiler_depend.ts
+│   │   │   │   ├── DependInfo.cmake
+│   │   │   │   ├── depend.make
+│   │   │   │   ├── flags.make
+│   │   │   │   ├── link.txt
+│   │   │   │   ├── ntos_assert.c.obj
+│   │   │   │   ├── ntos_assert.c.obj.d
+│   │   │   │   ├── ntos_kernel.c.obj
+│   │   │   │   ├── ntos_kernel.c.obj.d
+│   │   │   │   ├── ntos_list.c.obj
+│   │   │   │   ├── ntos_list.c.obj.d
+│   │   │   │   ├── ntos_task.c.obj
+│   │   │   │   ├── ntos_task.c.obj.d
+│   │   │   │   └── progress.make
+│   │   │   └── progress.marks
+│   │   ├── cmake_install.cmake
+│   │   ├── libntos_kernel.a
+│   │   └── Makefile
+│   ├── [01;34mlabs[0m
+│   │   ├── [01;34mCMakeFiles[0m
+│   │   │   ├── CMakeDirectoryInformation.cmake
+│   │   │   ├── [01;34mlab_exception_frame.dir[0m
+│   │   │   │   ├── [01;34m01_exception_frame[0m
+│   │   │   │   ├── build.make
+│   │   │   │   ├── cmake_clean.cmake
+│   │   │   │   ├── compiler_depend.make
+│   │   │   │   ├── compiler_depend.ts
+│   │   │   │   ├── DependInfo.cmake
+│   │   │   │   ├── depend.make
+│   │   │   │   ├── flags.make
+│   │   │   │   ├── link.txt
+│   │   │   │   └── progress.make
+│   │   │   ├── [01;34mlab_msp_psp.dir[0m
+│   │   │   │   ├── [01;34m02_msp_psp[0m
+│   │   │   │   ├── build.make
+│   │   │   │   ├── cmake_clean.cmake
+│   │   │   │   ├── compiler_depend.make
+│   │   │   │   ├── compiler_depend.ts
+│   │   │   │   ├── DependInfo.cmake
+│   │   │   │   ├── depend.make
+│   │   │   │   ├── flags.make
+│   │   │   │   ├── link.txt
+│   │   │   │   └── progress.make
+│   │   │   ├── [01;34mlab_svc.dir[0m
+│   │   │   │   ├── [01;34m03_svc[0m
+│   │   │   │   ├── build.make
+│   │   │   │   ├── cmake_clean.cmake
+│   │   │   │   ├── compiler_depend.make
+│   │   │   │   ├── compiler_depend.ts
+│   │   │   │   ├── DependInfo.cmake
+│   │   │   │   ├── depend.make
+│   │   │   │   ├── flags.make
+│   │   │   │   ├── link.txt
+│   │   │   │   └── progress.make
+│   │   │   └── progress.marks
+│   │   ├── cmake_install.cmake
+│   │   └── Makefile
+│   ├── Makefile
+│   └── [01;34mport[0m
+│       └── [01;34mcortex_m3[0m
+│           ├── [01;34mCMakeFiles[0m
+│           │   ├── CMakeDirectoryInformation.cmake
+│           │   ├── [01;34mntos_port.dir[0m
+│           │   │   ├── build.make
+│           │   │   ├── cmake_clean.cmake
+│           │   │   ├── cmake_clean_target.cmake
+│           │   │   ├── compiler_depend.make
+│           │   │   ├── compiler_depend.ts
+│           │   │   ├── DependInfo.cmake
+│           │   │   ├── depend.make
+│           │   │   ├── flags.make
+│           │   │   ├── link.txt
+│           │   │   └── progress.make
+│           │   └── progress.marks
+│           ├── cmake_install.cmake
+│           └── Makefile
+├── CLAUDE.md
+├── [01;34mcmake[0m
+│   ├── arm-none-eabi-toolchain.cmake
+│   ├── ntos_compiler_options.cmake
+│   └── ntos_firmware.cmake
+├── [01;34mcmake-learning[0m
+│   ├── [01;34m01_add_executable[0m
+│   │   ├── [01;34mbuild[0m
+│   │   │   ├── CMakeCache.txt
+│   │   │   ├── [01;34mCMakeFiles[0m
+│   │   │   │   ├── [01;34m3.28.3[0m
+│   │   │   │   │   ├── CMakeCCompiler.cmake
+│   │   │   │   │   ├── CMakeDetermineCompilerABI_C.bin
+│   │   │   │   │   ├── CMakeSystem.cmake
+│   │   │   │   │   └── [01;34mCompilerIdC[0m
+│   │   │   │   │       ├── CMakeCCompilerId.c
+│   │   │   │   │       ├── CMakeCCompilerId.o
+│   │   │   │   │       └── [01;34mtmp[0m
+│   │   │   │   ├── cmake.check_cache
+│   │   │   │   ├── CMakeConfigureLog.yaml
+│   │   │   │   ├── CMakeDirectoryInformation.cmake
+│   │   │   │   ├── [01;34mlesson_01_add_executable.dir[0m
+│   │   │   │   │   ├── build.make
+│   │   │   │   │   ├── cmake_clean.cmake
+│   │   │   │   │   ├── compiler_depend.internal
+│   │   │   │   │   ├── compiler_depend.make
+│   │   │   │   │   ├── compiler_depend.ts
+│   │   │   │   │   ├── DependInfo.cmake
+│   │   │   │   │   ├── depend.make
+│   │   │   │   │   ├── flags.make
+│   │   │   │   │   ├── [01;34mhome[0m
+│   │   │   │   │   │   └── [01;34mtohieu[0m
+│   │   │   │   │   │       └── [01;34mntos[0m
+│   │   │   │   │   │           ├── [01;34mbsp[0m
+│   │   │   │   │   │           │   └── [01;34mstm32f103c8[0m
+│   │   │   │   │   │           │       ├── [01;34mstartup[0m
+│   │   │   │   │   │           │       │   ├── startup_stm32f103.c.obj
+│   │   │   │   │   │           │       │   └── startup_stm32f103.c.obj.d
+│   │   │   │   │   │           │       └── [01;34msystem[0m
+│   │   │   │   │   │           │           ├── system_stm32f10x.c.obj
+│   │   │   │   │   │           │           └── system_stm32f10x.c.obj.d
+│   │   │   │   │   │           └── [01;34mdriver[0m
+│   │   │   │   │   │               └── [01;34mSTM32F10x_StdPeriph_Driver[0m
+│   │   │   │   │   │                   └── [01;34msrc[0m
+│   │   │   │   │   │                       ├── stm32f10x_gpio.c.obj
+│   │   │   │   │   │                       ├── stm32f10x_gpio.c.obj.d
+│   │   │   │   │   │                       ├── stm32f10x_rcc.c.obj
+│   │   │   │   │   │                       └── stm32f10x_rcc.c.obj.d
+│   │   │   │   │   ├── link.txt
+│   │   │   │   │   ├── main.c.obj
+│   │   │   │   │   ├── main.c.obj.d
+│   │   │   │   │   └── progress.make
+│   │   │   │   ├── Makefile2
+│   │   │   │   ├── Makefile.cmake
+│   │   │   │   ├── [01;34mpkgRedirects[0m
+│   │   │   │   ├── progress.marks
+│   │   │   │   └── TargetDirectories.txt
+│   │   │   ├── cmake_install.cmake
+│   │   │   ├── compile_commands.json
+│   │   │   ├── [01;32mlesson_01_add_executable.bin[0m
+│   │   │   ├── [01;32mlesson_01_add_executable.elf[0m
+│   │   │   ├── lesson_01_add_executable.hex
+│   │   │   ├── lesson_01_add_executable.map
+│   │   │   └── Makefile
+│   │   ├── [01;32mbuild.sh[0m
+│   │   ├── CMakeLists.txt
+│   │   ├── main.c
+│   │   └── tree.txt
+│   ├── [01;34m02_target_sources[0m
+│   │   ├── [01;34mbuild[0m
+│   │   │   ├── CMakeCache.txt
+│   │   │   ├── [01;34mCMakeFiles[0m
+│   │   │   │   ├── [01;34m3.28.3[0m
+│   │   │   │   │   ├── CMakeCCompiler.cmake
+│   │   │   │   │   ├── CMakeDetermineCompilerABI_C.bin
+│   │   │   │   │   ├── CMakeSystem.cmake
+│   │   │   │   │   └── [01;34mCompilerIdC[0m
+│   │   │   │   │       ├── CMakeCCompilerId.c
+│   │   │   │   │       ├── CMakeCCompilerId.o
+│   │   │   │   │       └── [01;34mtmp[0m
+│   │   │   │   ├── cmake.check_cache
+│   │   │   │   ├── CMakeConfigureLog.yaml
+│   │   │   │   ├── CMakeDirectoryInformation.cmake
+│   │   │   │   ├── [01;34mlesson_02_target_sources.dir[0m
+│   │   │   │   │   ├── build.make
+│   │   │   │   │   ├── cmake_clean.cmake
+│   │   │   │   │   ├── compiler_depend.internal
+│   │   │   │   │   ├── compiler_depend.make
+│   │   │   │   │   ├── compiler_depend.ts
+│   │   │   │   │   ├── DependInfo.cmake
+│   │   │   │   │   ├── depend.make
+│   │   │   │   │   ├── flags.make
+│   │   │   │   │   ├── [01;34mhome[0m
+│   │   │   │   │   │   └── [01;34mtohieu[0m
+│   │   │   │   │   │       └── [01;34mntos[0m
+│   │   │   │   │   │           ├── [01;34mbsp[0m
+│   │   │   │   │   │           │   └── [01;34mstm32f103c8[0m
+│   │   │   │   │   │           │       ├── [01;34mstartup[0m
+│   │   │   │   │   │           │       │   ├── startup_stm32f103.c.obj
+│   │   │   │   │   │           │       │   └── startup_stm32f103.c.obj.d
+│   │   │   │   │   │           │       └── [01;34msystem[0m
+│   │   │   │   │   │           │           ├── system_stm32f10x.c.obj
+│   │   │   │   │   │           │           └── system_stm32f10x.c.obj.d
+│   │   │   │   │   │           └── [01;34mdriver[0m
+│   │   │   │   │   │               └── [01;34mSTM32F10x_StdPeriph_Driver[0m
+│   │   │   │   │   │                   └── [01;34msrc[0m
+│   │   │   │   │   │                       ├── stm32f10x_gpio.c.obj
+│   │   │   │   │   │                       ├── stm32f10x_gpio.c.obj.d
+│   │   │   │   │   │                       ├── stm32f10x_rcc.c.obj
+│   │   │   │   │   │                       └── stm32f10x_rcc.c.obj.d
+│   │   │   │   │   ├── led.c.obj
+│   │   │   │   │   ├── led.c.obj.d
+│   │   │   │   │   ├── link.txt
+│   │   │   │   │   ├── main.c.obj
+│   │   │   │   │   ├── main.c.obj.d
+│   │   │   │   │   └── progress.make
+│   │   │   │   ├── Makefile2
+│   │   │   │   ├── Makefile.cmake
+│   │   │   │   ├── [01;34mpkgRedirects[0m
+│   │   │   │   ├── progress.marks
+│   │   │   │   └── TargetDirectories.txt
+│   │   │   ├── cmake_install.cmake
+│   │   │   ├── compile_commands.json
+│   │   │   ├── [01;32mlesson_02_target_sources.bin[0m
+│   │   │   ├── [01;32mlesson_02_target_sources.elf[0m
+│   │   │   ├── lesson_02_target_sources.hex
+│   │   │   ├── lesson_02_target_sources.map
+│   │   │   └── Makefile
+│   │   ├── [01;32mbuild.sh[0m
+│   │   ├── CMakeLists.txt
+│   │   ├── led.c
+│   │   ├── led.h
+│   │   └── main.c
+│   ├── [01;34m03_include_directories[0m
+│   │   ├── [01;34mbuild[0m
+│   │   │   ├── CMakeCache.txt
+│   │   │   ├── [01;34mCMakeFiles[0m
+│   │   │   │   ├── [01;34m3.28.3[0m
+│   │   │   │   │   ├── CMakeCCompiler.cmake
+│   │   │   │   │   ├── CMakeDetermineCompilerABI_C.bin
+│   │   │   │   │   ├── CMakeSystem.cmake
+│   │   │   │   │   └── [01;34mCompilerIdC[0m
+│   │   │   │   │       ├── CMakeCCompilerId.c
+│   │   │   │   │       ├── CMakeCCompilerId.o
+│   │   │   │   │       └── [01;34mtmp[0m
+│   │   │   │   ├── cmake.check_cache
+│   │   │   │   ├── CMakeConfigureLog.yaml
+│   │   │   │   ├── CMakeDirectoryInformation.cmake
+│   │   │   │   ├── [01;34mlesson_03.dir[0m
+│   │   │   │   │   ├── build.make
+│   │   │   │   │   ├── cmake_clean.cmake
+│   │   │   │   │   ├── compiler_depend.internal
+│   │   │   │   │   ├── compiler_depend.make
+│   │   │   │   │   ├── compiler_depend.ts
+│   │   │   │   │   ├── DependInfo.cmake
+│   │   │   │   │   ├── depend.make
+│   │   │   │   │   ├── flags.make
+│   │   │   │   │   ├── [01;34mhome[0m
+│   │   │   │   │   │   └── [01;34mtohieu[0m
+│   │   │   │   │   │       └── [01;34mntos[0m
+│   │   │   │   │   │           ├── [01;34mbsp[0m
+│   │   │   │   │   │           │   └── [01;34mstm32f103c8[0m
+│   │   │   │   │   │           │       ├── [01;34mstartup[0m
+│   │   │   │   │   │           │       │   ├── startup_stm32f103.c.obj
+│   │   │   │   │   │           │       │   └── startup_stm32f103.c.obj.d
+│   │   │   │   │   │           │       └── [01;34msystem[0m
+│   │   │   │   │   │           │           ├── system_stm32f10x.c.obj
+│   │   │   │   │   │           │           └── system_stm32f10x.c.obj.d
+│   │   │   │   │   │           └── [01;34mdriver[0m
+│   │   │   │   │   │               └── [01;34mSTM32F10x_StdPeriph_Driver[0m
+│   │   │   │   │   │                   └── [01;34msrc[0m
+│   │   │   │   │   │                       ├── stm32f10x_gpio.c.obj
+│   │   │   │   │   │                       ├── stm32f10x_gpio.c.obj.d
+│   │   │   │   │   │                       ├── stm32f10x_rcc.c.obj
+│   │   │   │   │   │                       └── stm32f10x_rcc.c.obj.d
+│   │   │   │   │   ├── link.txt
+│   │   │   │   │   ├── main.c.obj
+│   │   │   │   │   ├── main.c.obj.d
+│   │   │   │   │   ├── progress.make
+│   │   │   │   │   └── [01;34msrc[0m
+│   │   │   │   │       ├── led.c.obj
+│   │   │   │   │       └── led.c.obj.d
+│   │   │   │   ├── Makefile2
+│   │   │   │   ├── Makefile.cmake
+│   │   │   │   ├── [01;34mpkgRedirects[0m
+│   │   │   │   ├── progress.marks
+│   │   │   │   └── TargetDirectories.txt
+│   │   │   ├── cmake_install.cmake
+│   │   │   ├── compile_commands.json
+│   │   │   ├── [01;32mlesson_03.bin[0m
+│   │   │   ├── [01;32mlesson_03.elf[0m
+│   │   │   ├── lesson_03.hex
+│   │   │   ├── lesson_03.map
+│   │   │   └── Makefile
+│   │   ├── [01;32mbuild.sh[0m
+│   │   ├── CMakeLists.txt
+│   │   ├── [01;34minclude[0m
+│   │   │   └── led.h
+│   │   ├── main.c
+│   │   └── [01;34msrc[0m
+│   │       └── led.c
+│   ├── [01;34m04_static_library[0m
+│   │   ├── [01;34mbuild[0m
+│   │   │   ├── CMakeCache.txt
+│   │   │   ├── [01;34mCMakeFiles[0m
+│   │   │   │   ├── [01;34m3.28.3[0m
+│   │   │   │   │   ├── CMakeCCompiler.cmake
+│   │   │   │   │   ├── CMakeDetermineCompilerABI_C.bin
+│   │   │   │   │   ├── CMakeSystem.cmake
+│   │   │   │   │   └── [01;34mCompilerIdC[0m
+│   │   │   │   │       ├── CMakeCCompilerId.c
+│   │   │   │   │       ├── CMakeCCompilerId.o
+│   │   │   │   │       └── [01;34mtmp[0m
+│   │   │   │   ├── cmake.check_cache
+│   │   │   │   ├── CMakeConfigureLog.yaml
+│   │   │   │   ├── CMakeDirectoryInformation.cmake
+│   │   │   │   ├── [01;34mled_driver.dir[0m
+│   │   │   │   │   ├── build.make
+│   │   │   │   │   ├── cmake_clean.cmake
+│   │   │   │   │   ├── cmake_clean_target.cmake
+│   │   │   │   │   ├── compiler_depend.internal
+│   │   │   │   │   ├── compiler_depend.make
+│   │   │   │   │   ├── compiler_depend.ts
+│   │   │   │   │   ├── DependInfo.cmake
+│   │   │   │   │   ├── depend.make
+│   │   │   │   │   ├── flags.make
+│   │   │   │   │   ├── link.txt
+│   │   │   │   │   ├── progress.make
+│   │   │   │   │   └── [01;34msrc[0m
+│   │   │   │   │       ├── led.c.obj
+│   │   │   │   │       └── led.c.obj.d
+│   │   │   │   ├── [01;34mlesson_04.dir[0m
+│   │   │   │   │   ├── build.make
+│   │   │   │   │   ├── cmake_clean.cmake
+│   │   │   │   │   ├── compiler_depend.internal
+│   │   │   │   │   ├── compiler_depend.make
+│   │   │   │   │   ├── compiler_depend.ts
+│   │   │   │   │   ├── DependInfo.cmake
+│   │   │   │   │   ├── depend.make
+│   │   │   │   │   ├── flags.make
+│   │   │   │   │   ├── [01;34mhome[0m
+│   │   │   │   │   │   └── [01;34mtohieu[0m
+│   │   │   │   │   │       └── [01;34mntos[0m
+│   │   │   │   │   │           └── [01;34mbsp[0m
+│   │   │   │   │   │               └── [01;34mstm32f103c8[0m
+│   │   │   │   │   │                   ├── [01;34mstartup[0m
+│   │   │   │   │   │                   │   ├── startup_stm32f103.c.obj
+│   │   │   │   │   │                   │   └── startup_stm32f103.c.obj.d
+│   │   │   │   │   │                   └── [01;34msystem[0m
+│   │   │   │   │   │                       ├── system_stm32f10x.c.obj
+│   │   │   │   │   │                       └── system_stm32f10x.c.obj.d
+│   │   │   │   │   ├── link.txt
+│   │   │   │   │   ├── main.c.obj
+│   │   │   │   │   ├── main.c.obj.d
+│   │   │   │   │   └── progress.make
+│   │   │   │   ├── Makefile2
+│   │   │   │   ├── Makefile.cmake
+│   │   │   │   ├── [01;34mpkgRedirects[0m
+│   │   │   │   ├── progress.marks
+│   │   │   │   ├── [01;34mstm32_spl.dir[0m
+│   │   │   │   │   ├── build.make
+│   │   │   │   │   ├── cmake_clean.cmake
+│   │   │   │   │   ├── cmake_clean_target.cmake
+│   │   │   │   │   ├── compiler_depend.internal
+│   │   │   │   │   ├── compiler_depend.make
+│   │   │   │   │   ├── compiler_depend.ts
+│   │   │   │   │   ├── DependInfo.cmake
+│   │   │   │   │   ├── depend.make
+│   │   │   │   │   ├── flags.make
+│   │   │   │   │   ├── [01;34mhome[0m
+│   │   │   │   │   │   └── [01;34mtohieu[0m
+│   │   │   │   │   │       └── [01;34mntos[0m
+│   │   │   │   │   │           └── [01;34mdriver[0m
+│   │   │   │   │   │               └── [01;34mSTM32F10x_StdPeriph_Driver[0m
+│   │   │   │   │   │                   └── [01;34msrc[0m
+│   │   │   │   │   │                       ├── stm32f10x_gpio.c.obj
+│   │   │   │   │   │                       ├── stm32f10x_gpio.c.obj.d
+│   │   │   │   │   │                       ├── stm32f10x_rcc.c.obj
+│   │   │   │   │   │                       └── stm32f10x_rcc.c.obj.d
+│   │   │   │   │   ├── link.txt
+│   │   │   │   │   └── progress.make
+│   │   │   │   └── TargetDirectories.txt
+│   │   │   ├── cmake_install.cmake
+│   │   │   ├── compile_commands.json
+│   │   │   ├── [01;32mlesson_04.bin[0m
+│   │   │   ├── [01;32mlesson_04.elf[0m
+│   │   │   ├── lesson_04.hex
+│   │   │   ├── lesson_04.map
+│   │   │   ├── libled_driver.a
+│   │   │   ├── libstm32_spl.a
+│   │   │   └── Makefile
+│   │   ├── [01;32mbuild.sh[0m
+│   │   ├── CMakeLists.txt
+│   │   ├── [01;34minclude[0m
+│   │   │   └── led.h
+│   │   ├── main.c
+│   │   └── [01;34msrc[0m
+│   │       └── led.c
+│   ├── [01;34m05_add_subdirectory[0m
+│   │   ├── [01;34mapp[0m
+│   │   │   ├── CMakeLists.txt
+│   │   │   └── main.c
+│   │   ├── [01;34mbuild[0m
+│   │   │   ├── [01;34mapp[0m
+│   │   │   │   ├── [01;34mCMakeFiles[0m
+│   │   │   │   │   ├── CMakeDirectoryInformation.cmake
+│   │   │   │   │   ├── [01;34mlesson_05.dir[0m
+│   │   │   │   │   │   ├── build.make
+│   │   │   │   │   │   ├── cmake_clean.cmake
+│   │   │   │   │   │   ├── compiler_depend.internal
+│   │   │   │   │   │   ├── compiler_depend.make
+│   │   │   │   │   │   ├── compiler_depend.ts
+│   │   │   │   │   │   ├── DependInfo.cmake
+│   │   │   │   │   │   ├── depend.make
+│   │   │   │   │   │   ├── flags.make
+│   │   │   │   │   │   ├── [01;34mhome[0m
+│   │   │   │   │   │   │   └── [01;34mtohieu[0m
+│   │   │   │   │   │   │       └── [01;34mntos[0m
+│   │   │   │   │   │   │           └── [01;34mbsp[0m
+│   │   │   │   │   │   │               └── [01;34mstm32f103c8[0m
+│   │   │   │   │   │   │                   ├── [01;34mstartup[0m
+│   │   │   │   │   │   │                   │   ├── startup_stm32f103.c.obj
+│   │   │   │   │   │   │                   │   └── startup_stm32f103.c.obj.d
+│   │   │   │   │   │   │                   └── [01;34msystem[0m
+│   │   │   │   │   │   │                       ├── system_stm32f10x.c.obj
+│   │   │   │   │   │   │                       └── system_stm32f10x.c.obj.d
+│   │   │   │   │   │   ├── link.txt
+│   │   │   │   │   │   ├── main.c.obj
+│   │   │   │   │   │   ├── main.c.obj.d
+│   │   │   │   │   │   └── progress.make
+│   │   │   │   │   └── progress.marks
+│   │   │   │   ├── cmake_install.cmake
+│   │   │   │   ├── [01;32mlesson_05.bin[0m
+│   │   │   │   ├── [01;32mlesson_05.elf[0m
+│   │   │   │   ├── lesson_05.hex
+│   │   │   │   ├── lesson_05.map
+│   │   │   │   └── Makefile
+│   │   │   ├── CMakeCache.txt
+│   │   │   ├── [01;34mCMakeFiles[0m
+│   │   │   │   ├── [01;34m3.28.3[0m
+│   │   │   │   │   ├── CMakeCCompiler.cmake
+│   │   │   │   │   ├── CMakeDetermineCompilerABI_C.bin
+│   │   │   │   │   ├── CMakeSystem.cmake
+│   │   │   │   │   └── [01;34mCompilerIdC[0m
+│   │   │   │   │       ├── CMakeCCompilerId.c
+│   │   │   │   │       ├── CMakeCCompilerId.o
+│   │   │   │   │       └── [01;34mtmp[0m
+│   │   │   │   ├── cmake.check_cache
+│   │   │   │   ├── CMakeConfigureLog.yaml
+│   │   │   │   ├── CMakeDirectoryInformation.cmake
+│   │   │   │   ├── Makefile2
+│   │   │   │   ├── Makefile.cmake
+│   │   │   │   ├── [01;34mpkgRedirects[0m
+│   │   │   │   ├── progress.marks
+│   │   │   │   └── TargetDirectories.txt
+│   │   │   ├── cmake_install.cmake
+│   │   │   ├── compile_commands.json
+│   │   │   ├── [01;34mled_driver[0m
+│   │   │   │   ├── [01;34mCMakeFiles[0m
+│   │   │   │   │   ├── CMakeDirectoryInformation.cmake
+│   │   │   │   │   ├── [01;34mled_driver.dir[0m
+│   │   │   │   │   │   ├── build.make
+│   │   │   │   │   │   ├── cmake_clean.cmake
+│   │   │   │   │   │   ├── cmake_clean_target.cmake
+│   │   │   │   │   │   ├── compiler_depend.internal
+│   │   │   │   │   │   ├── compiler_depend.make
+│   │   │   │   │   │   ├── compiler_depend.ts
+│   │   │   │   │   │   ├── DependInfo.cmake
+│   │   │   │   │   │   ├── depend.make
+│   │   │   │   │   │   ├── flags.make
+│   │   │   │   │   │   ├── link.txt
+│   │   │   │   │   │   ├── progress.make
+│   │   │   │   │   │   └── [01;34msrc[0m
+│   │   │   │   │   │       ├── led.c.obj
+│   │   │   │   │   │       └── led.c.obj.d
+│   │   │   │   │   └── progress.marks
+│   │   │   │   ├── cmake_install.cmake
+│   │   │   │   ├── libled_driver.a
+│   │   │   │   └── Makefile
+│   │   │   ├── Makefile
+│   │   │   └── [01;34mstm32_spl[0m
+│   │   │       ├── [01;34mCMakeFiles[0m
+│   │   │       │   ├── CMakeDirectoryInformation.cmake
+│   │   │       │   ├── progress.marks
+│   │   │       │   └── [01;34mstm32_spl.dir[0m
+│   │   │       │       ├── build.make
+│   │   │       │       ├── cmake_clean.cmake
+│   │   │       │       ├── cmake_clean_target.cmake
+│   │   │       │       ├── compiler_depend.internal
+│   │   │       │       ├── compiler_depend.make
+│   │   │       │       ├── compiler_depend.ts
+│   │   │       │       ├── DependInfo.cmake
+│   │   │       │       ├── depend.make
+│   │   │       │       ├── flags.make
+│   │   │       │       ├── [01;34mhome[0m
+│   │   │       │       │   └── [01;34mtohieu[0m
+│   │   │       │       │       └── [01;34mntos[0m
+│   │   │       │       │           └── [01;34mdriver[0m
+│   │   │       │       │               └── [01;34mSTM32F10x_StdPeriph_Driver[0m
+│   │   │       │       │                   └── [01;34msrc[0m
+│   │   │       │       │                       ├── stm32f10x_gpio.c.obj
+│   │   │       │       │                       ├── stm32f10x_gpio.c.obj.d
+│   │   │       │       │                       ├── stm32f10x_rcc.c.obj
+│   │   │       │       │                       └── stm32f10x_rcc.c.obj.d
+│   │   │       │       ├── link.txt
+│   │   │       │       └── progress.make
+│   │   │       ├── cmake_install.cmake
+│   │   │       ├── libstm32_spl.a
+│   │   │       └── Makefile
+│   │   ├── [01;32mbuild.sh[0m
+│   │   ├── CMakeLists.txt
+│   │   ├── [01;34mled_driver[0m
+│   │   │   ├── CMakeLists.txt
+│   │   │   ├── [01;34minclude[0m
+│   │   │   │   └── led.h
+│   │   │   └── [01;34msrc[0m
+│   │   │       └── led.c
+│   │   └── [01;34mstm32_spl[0m
+│   │       └── CMakeLists.txt
+│   └── CMAKE_BASICS_REPORT.md
 ├── CMakeLists.txt
-└── README.md
+├── [01;34mcmsis[0m
+│   ├── CMakeLists.txt
+│   ├── [01;34mDevice[0m
+│   │   └── [01;34mST[0m
+│   │       └── [01;34mSTM32F1xx[0m
+│   │           └── [01;34mInclude[0m
+│   │               ├── stm32f10x.h
+│   │               └── system_stm32f10x.h
+│   └── [01;34mInclude[0m
+│       ├── cmsis_armcc.h
+│       ├── cmsis_armclang.h
+│       ├── cmsis_compiler.h
+│       ├── cmsis_gcc.h
+│       ├── cmsis_iccarm.h
+│       ├── cmsis_version.h
+│       ├── core_armv8mbl.h
+│       ├── core_armv8mml.h
+│       ├── core_cm0.h
+│       ├── core_cm0plus.h
+│       ├── core_cm1.h
+│       ├── core_cm23.h
+│       ├── core_cm33.h
+│       ├── core_cm3.h
+│       ├── core_cm4.h
+│       ├── core_cm7.h
+│       ├── core_sc000.h
+│       ├── core_sc300.h
+│       ├── mpu_armv7.h
+│       ├── mpu_armv8.h
+│       └── tz_context.h
+├── [01;34mdocs[0m
+│   ├── cmake_flow.md
+│   ├── context_switch.md
+│   ├── ipc.md
+│   ├── known_limitations.md
+│   ├── [01;34mlearning_log[0m
+│   │   └── template.md
+│   ├── ntos_design.md
+│   ├── ntos_roadmap.md
+│   ├── scheduler.md
+│   ├── task_states.md
+│   └── testing.md
+├── [01;34mexamples[0m
+│   ├── [01;34m01_basic_tasks[0m
+│   │   ├── CMakeLists.txt
+│   │   ├── main.c
+│   │   ├── ntos_config.h
+│   │   └── README.md
+│   ├── [01;34m02_preemptive[0m
+│   │   ├── CMakeLists.txt
+│   │   ├── main.c
+│   │   ├── ntos_config.h
+│   │   └── README.md
+│   ├── [01;34m03_priority[0m
+│   │   ├── CMakeLists.txt
+│   │   ├── main.c
+│   │   ├── ntos_config.h
+│   │   └── README.md
+│   ├── [01;34m04_delay[0m
+│   │   ├── CMakeLists.txt
+│   │   ├── main.c
+│   │   ├── ntos_config.h
+│   │   └── README.md
+│   ├── [01;34m05_semaphore_button[0m
+│   │   ├── CMakeLists.txt
+│   │   ├── main.c
+│   │   ├── ntos_config.h
+│   │   └── README.md
+│   ├── [01;34m06_uart_queue[0m
+│   │   ├── CMakeLists.txt
+│   │   ├── main.c
+│   │   ├── ntos_config.h
+│   │   └── README.md
+│   ├── [01;34m07_full_demo[0m
+│   │   ├── CMakeLists.txt
+│   │   ├── main.c
+│   │   ├── ntos_config.h
+│   │   └── README.md
+│   ├── CMakeLists.txt
+│   └── README.md
+├── [01;34minclude[0m
+│   └── [01;34mntos[0m
+│       ├── ntos_config_default.h
+│       ├── ntos.h
+│       ├── ntos_queue.h
+│       ├── ntos_sem.h
+│       ├── ntos_status.h
+│       ├── ntos_task.h
+│       └── ntos_types.h
+├── [01;34mkernel[0m
+│   ├── CMakeLists.txt
+│   ├── [01;34minternal[0m
+│   │   ├── ntos_assert_internal.h
+│   │   ├── ntos_kernel_internal.h
+│   │   ├── ntos_list_internal.h
+│   │   └── ntos_task_internal.h
+│   ├── ntos_assert.c
+│   ├── ntos_kernel.c
+│   ├── ntos_list.c
+│   └── ntos_task.c
+├── [01;34mlabs[0m
+│   ├── [01;34m01_exception_frame[0m
+│   │   ├── main.c
+│   │   └── README.md
+│   ├── [01;34m02_msp_psp[0m
+│   │   ├── main.c
+│   │   └── README.md
+│   ├── [01;34m03_svc[0m
+│   │   ├── main.c
+│   │   └── README.md
+│   ├── CMakeLists.txt
+│   └── cortex_m3_exception_msp_psp_svc_report.md
+├── [01;34mport[0m
+│   └── [01;34mcortex_m3[0m
+│       ├── CMakeLists.txt
+│       ├── ntos_port_asm.S
+│       ├── ntos_port.c
+│       └── ntos_port.h
+├── PROJECT_TREE.txt
+├── [01;34mscripts[0m
+│   ├── [01;32mbuild.sh[0m
+│   ├── [01;32mclean.sh[0m
+│   └── [01;32mflash.sh[0m
+├── [01;34mtests[0m
+│   ├── CMakeLists.txt
+│   ├── [01;34mhost[0m
+│   │   ├── CMakeLists.txt
+│   │   ├── test_list.c
+│   │   ├── test_priority.c
+│   │   ├── test_ring_buffer.c
+│   │   └── test_tick.c
+│   ├── README.md
+│   ├── [01;34msupport[0m
+│   │   ├── ntos_test.h
+│   │   └── ntos_test_hooks.h
+│   └── [01;34mtarget[0m
+│       ├── CMakeLists.txt
+│       ├── test_context_switch.c
+│       ├── test_delay.c
+│       ├── test_initial_stack.c
+│       ├── test_preemption.c
+│       ├── test_priority.c
+│       ├── test_queue.c
+│       ├── test_register_preservation.c
+│       ├── test_semaphore.c
+│       ├── test_stack_guard.c
+│       └── test_tick_overflow.c
+└── [01;34mtools[0m
+    ├── [01;34mgdb[0m
+    │   └── ntos.gdb
+    └── [01;34mopenocd[0m
+        └── stm32f103.cfg
+
+218 directories, 633 files

@@ -1,6 +1,6 @@
 # Board support code for the STM32F103 line (STM32F10x family).
 add_library(ntos_bsp STATIC
-    src/board.c src/clock.c src/gpio.c src/uart.c src/exti.c
+    src/gpio.c src/uart.c src/exti.c
     system/system_stm32f10x.c startup/startup_stm32f103.c)
 
 target_include_directories(ntos_bsp
