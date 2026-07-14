@@ -321,6 +321,13 @@ typedef enum
 
 ## 8.1. TCB đề xuất
 
+TCB là type **công khai**, định nghĩa tại `include/ntos/ntos_task.h` (không phải
+opaque, không phải ở header nội bộ) — để application có thể khai báo TCB tĩnh
+trực tiếp, ví dụ `static ntos_tcb_t task1_tcb;`. `kernel/internal/ntos_task_internal.h`
+chỉ `#include <ntos/ntos_task.h>` để code nội bộ kernel dùng chung type này.
+
+TCB tối thiểu (đúng trạng thái từ Chặng 2 trở đi):
+
 ```c
 typedef void (*ntos_task_entry_t)(void *argument);
 
@@ -346,13 +353,12 @@ typedef struct ntos_tcb
 
     ntos_priority_t priority;
     ntos_task_state_t state;
-
-    ntos_tick_t wake_tick;
-
-    ntos_list_item_t ready_item;
-    ntos_list_item_t wait_item;
 } ntos_tcb_t;
 ```
+
+`wake_tick` (xem §13.3, Chặng 7) và `ready_item`/`wait_item` (xem §8.3, §15,
+Chặng 8/9) **chưa có trong TCB hiện tại** — sẽ được thêm vào struct này khi
+tới đúng chặng cần chúng, không thêm sớm.
 
 ## 8.2. Tại sao `stack_pointer` ở đầu?
 
@@ -364,7 +370,9 @@ STR r0, [r1]
 
 nếu `r1` trỏ tới TCB.
 
-## 8.3. Vì sao hai list item?
+## 8.3. Vì sao hai list item? (Chặng 8/9, chưa có trong TCB hiện tại)
+
+Khi ready list và wait list được thêm (Chặng 8 trở đi), TCB sẽ cần hai list item riêng:
 
 - `ready_item`: membership trong ready list hoặc state-related list.
 - `wait_item`: membership trong semaphore/queue wait list.

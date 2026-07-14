@@ -1795,7 +1795,7 @@ Một timer task và ordered timer list, không cần command queue quá phức 
 |---:|---|:---:|:---:|:---:|:---:|
 | 0 | Bare-metal | [x] | [ ] | [ ] | [ ] |
 | 1 | MSP/PSP/Exception | [x] | [ ] | [ ] | [ ] |
-| 2 | TCB/Initial stack | [ ] | [ ] | [ ] | [ ] |
+| 2 | TCB/Initial stack | [x] | [x] | [x] | [ ] |
 | 3 | First task/SVC | [ ] | [ ] | [ ] | [ ] |
 | 4 | Cooperative/PendSV | [ ] | [ ] | [ ] | [ ] |
 | 5 | Preemptive/SysTick | [ ] | [ ] | [ ] | [ ] |
@@ -1809,7 +1809,8 @@ Ghi chú:
 
 - **Chặng 0** — Build/flash/debug qua CMake + `scripts/build.sh`/`flash.sh` đã chạy được (`bsp/stm32f10x/`, linker, startup). Checklist test §0.6 (reset 50 lần, power cycle, kiểm tra `.data`/`.bss`...) chưa có bằng chứng ghi lại, nên cột Test để trống.
 - **Chặng 1** — `labs/01_exception_frame`, `labs/02_msp_psp`, `labs/03_svc` đã có và đi kèm báo cáo chi tiết `labs/cortex_m3_exception_msp_psp_svc_report.md`. Cột Docs để trống vì `docs/context_switch.md` (tài liệu chính thức theo §1.5) vẫn còn là placeholder một dòng, chưa rút nội dung từ report vào.
-- **Chặng 2 trở đi** — `kernel/*.c` và `port/cortex_m3/*.c` hiện toàn bộ là stub `TODO(stage N)`, chưa có implementation thật. `include/ntos/*.h` đã khai báo API nhưng chưa khớp hết với bản thiết kế trong `ntos_design.md` (chưa có `ntos_config.h`, `wake_tick`, `ready_item`/`wait_item` trong TCB thật).
+- **Chặng 2** — Đã xong: `ntos_tcb_t` là type công khai đầy đủ tại `include/ntos/ntos_task.h` (không opaque), `kernel/internal/ntos_task_internal.h` chỉ re-export type này. `kernel/ntos_task.c` đã implement `ntos_task_create_static()` (validate tham số, dựng initial stack frame, fill pattern), build sạch. TCB hiện tại **không có** `wake_tick`/`ready_item`/`wait_item` — các field này cố ý để dành cho Chặng 7/8/9, đã ghi rõ trong `ntos_design.md` §8.1/§8.3.
+- **Chặng 3 trở đi** — `kernel/ntos_kernel.c` và `port/cortex_m3/*.c` hiện toàn bộ vẫn là stub `TODO(stage N)`, chưa có implementation thật.
 - Không có git tag nào trong repo tại thời điểm cập nhật — cột Tag toàn bộ để trống cho tới khi tag đầu tiên (`v0.0.1-bare-metal`) được tạo.
 
 ---
