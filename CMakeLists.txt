@@ -8,9 +8,9 @@ set(CMAKE_C_STANDARD_REQUIRED ON)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
 # Build groups.
-option(NTOS_BUILD_LABS "Build Cortex-M3 learning labs" ON)
+option(NTOS_BUILD_LABS "Build Cortex-M3 learning labs" OFF)
 option(NTOS_BUILD_EXAMPLES "Build ntos examples" OFF)
-option(NTOS_BUILD_TESTS "Build tests" OFF)
+option(NTOS_BUILD_TESTS "Build tests" ON)
 
 # Common CMake helpers.
 include(cmake/ntos_compiler_options.cmake)
@@ -22,8 +22,8 @@ add_subdirectory(cmsis)
 # Platform module: BSP, startup, linker script.
 add_subdirectory(bsp/stm32f10x)
 
-# OS modules are only needed by examples for now.
-if(NTOS_BUILD_EXAMPLES)
+# OS modules are needed by examples and target tests.
+if(NTOS_BUILD_EXAMPLES OR NTOS_BUILD_TESTS)
     add_subdirectory(kernel)
     add_subdirectory(port/cortex_m3)
 endif()

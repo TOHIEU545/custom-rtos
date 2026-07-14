@@ -8,6 +8,150 @@
 
 ---
 
+# Mục lục
+
+- [PHẦN I — NGUYÊN TẮC VÀ PHẠM VI](#phần-i-nguyên-tắc-và-phạm-vi)
+- [1. Cách sử dụng roadmap](#1-cách-sử-dụng-roadmap)
+  - [1.1. Nguyên tắc chính](#11-nguyên-tắc-chính)
+- [2. Phạm vi chính thức của ntos](#2-phạm-vi-chính-thức-của-ntos)
+  - [2.1. Tính năng bắt buộc](#21-tính-năng-bắt-buộc)
+  - [2.2. Tính năng tùy chọn](#22-tính-năng-tùy-chọn)
+  - [2.3. Không làm trong phiên bản học tập](#23-không-làm-trong-phiên-bản-học-tập)
+- [3. Nền tảng kỹ thuật](#3-nền-tảng-kỹ-thuật)
+- [4. Các source nên tham khảo](#4-các-source-nên-tham-khảo)
+  - [4.1. AKOS](#41-akos)
+  - [4.2. FreeRTOS](#42-freertos)
+  - [4.3. RT-Thread Nano](#43-rt-thread-nano)
+  - [4.4. Quy tắc đọc source](#44-quy-tắc-đọc-source)
+- [5. Bảng milestone](#5-bảng-milestone)
+- [PHẦN II — LỘ TRÌNH THEO CHẶNG](#phần-ii-lộ-trình-theo-chặng)
+- [CHẶNG 0 — BARE-METAL FOUNDATION](#chặng-0-bare-metal-foundation)
+  - [0.1. Mục tiêu](#01-mục-tiêu)
+  - [0.2. Tại sao cần chặng này?](#02-tại-sao-cần-chặng-này)
+  - [0.3. Câu hỏi bắt buộc](#03-câu-hỏi-bắt-buộc)
+  - [0.4. File cần có](#04-file-cần-có)
+  - [0.5. Yêu cầu cần đạt](#05-yêu-cầu-cần-đạt)
+  - [0.6. Test](#06-test)
+  - [0.7. Điều kiện qua chặng](#07-điều-kiện-qua-chặng)
+  - [0.8. Không được đi tiếp nếu](#08-không-được-đi-tiếp-nếu)
+  - [0.9. Tag](#09-tag)
+- [CHẶNG 1 — HỌC KỸ MSP, PSP VÀ EXCEPTION MODEL](#chặng-1-học-kỹ-msp-psp-và-exception-model)
+  - [1.1. Mục tiêu](#11-mục-tiêu)
+  - [1.2. Nội dung phải nắm](#12-nội-dung-phải-nắm)
+  - [1.3. Câu hỏi bắt buộc](#13-câu-hỏi-bắt-buộc)
+  - [1.4. Bài thực hành](#14-bài-thực-hành)
+  - [1.5. Tài liệu phải tự viết](#15-tài-liệu-phải-tự-viết)
+  - [1.6. Test cần đạt](#16-test-cần-đạt)
+  - [1.7. Điều kiện qua chặng](#17-điều-kiện-qua-chặng)
+  - [1.8. Không được đi tiếp nếu](#18-không-được-đi-tiếp-nếu)
+  - [1.9. Source tham khảo](#19-source-tham-khảo)
+  - [1.10. Tag](#110-tag)
+- [CHẶNG 2 — TCB VÀ INITIAL TASK STACK](#chặng-2-tcb-và-initial-task-stack)
+  - [2.1. Mục tiêu](#21-mục-tiêu)
+  - [2.2. Tại sao cần initial context?](#22-tại-sao-cần-initial-context)
+  - [2.3. TCB tối thiểu](#23-tcb-tối-thiểu)
+  - [2.4. Initial stack frame](#24-initial-stack-frame)
+  - [2.5. Câu hỏi bắt buộc](#25-câu-hỏi-bắt-buộc)
+  - [2.6. API](#26-api)
+  - [2.7. Invariant](#27-invariant)
+  - [2.8. Test](#28-test)
+  - [2.9. Kết quả cần đạt](#29-kết-quả-cần-đạt)
+  - [2.10. Điều kiện qua chặng](#210-điều-kiện-qua-chặng)
+  - [2.11. Source tham khảo](#211-source-tham-khảo)
+  - [2.12. Tag](#212-tag)
+- [CHẶNG 3 — START FIRST TASK BẰNG SVC](#chặng-3-start-first-task-bằng-svc)
+  - [3.1. Mục tiêu](#31-mục-tiêu)
+  - [3.2. Câu hỏi bắt buộc](#32-câu-hỏi-bắt-buộc)
+  - [3.3. Flow](#33-flow)
+  - [3.4. API](#34-api)
+  - [3.5. Yêu cầu code](#35-yêu-cầu-code)
+  - [3.6. Test](#36-test)
+  - [3.7. Điều kiện qua chặng](#37-điều-kiện-qua-chặng)
+  - [3.8. Không được đi tiếp nếu](#38-không-được-đi-tiếp-nếu)
+  - [3.9. Tag](#39-tag)
+- [CHẶNG 4 — COOPERATIVE SCHEDULER BẰNG PENDSV](#chặng-4-cooperative-scheduler-bằng-pendsv)
+  - [4.1. Mục tiêu](#41-mục-tiêu)
+  - [4.2. Scheduler tạm thời](#42-scheduler-tạm-thời)
+  - [4.3. Câu hỏi bắt buộc](#43-câu-hỏi-bắt-buộc)
+  - [4.4. PendSV flow](#44-pendsv-flow)
+  - [4.5. API](#45-api)
+  - [4.6. Invariant](#46-invariant)
+  - [4.7. Test bắt buộc](#47-test-bắt-buộc)
+  - [4.8. Điều kiện qua chặng](#48-điều-kiện-qua-chặng)
+  - [4.9. Không được đi tiếp nếu](#49-không-được-đi-tiếp-nếu)
+  - [4.10. Source tham khảo](#410-source-tham-khảo)
+  - [4.11. Tag](#411-tag)
+- [CHẶNG 5 — PREEMPTIVE ROUND-ROBIN BẰNG SYSTICK](#chặng-5-preemptive-round-robin-bằng-systick)
+  - [5.1. Mục tiêu](#51-mục-tiêu)
+  - [5.2. Câu hỏi bắt buộc](#52-câu-hỏi-bắt-buộc)
+  - [5.3. Implementation cơ bản](#53-implementation-cơ-bản)
+  - [5.4. Demo](#54-demo)
+  - [5.5. Test](#55-test)
+  - [5.6. Kết quả cần đạt](#56-kết-quả-cần-đạt)
+  - [5.7. Điều kiện qua chặng](#57-điều-kiện-qua-chặng)
+  - [5.8. Tag](#58-tag)
+- [CHẶNG 6 — TASK STATES, PRIORITY VÀ IDLE TASK](#chặng-6-task-states-priority-và-idle-task)
+  - [6.1. Mục tiêu](#61-mục-tiêu)
+  - [6.2. States](#62-states)
+  - [6.3. Idle task](#63-idle-task)
+  - [6.4. Câu hỏi bắt buộc](#64-câu-hỏi-bắt-buộc)
+  - [6.5. Scheduler O(n)](#65-scheduler-on)
+  - [6.6. Rules](#66-rules)
+  - [6.7. Test](#67-test)
+  - [6.8. Điều kiện qua chặng](#68-điều-kiện-qua-chặng)
+  - [6.9. Tag](#69-tag)
+- [CHẶNG 7 — TASK DELAY VÀ BLOCKING](#chặng-7-task-delay-và-blocking)
+  - [7.1. Mục tiêu](#71-mục-tiêu)
+  - [7.2. Phiên bản đầu](#72-phiên-bản-đầu)
+  - [7.3. API](#73-api)
+  - [7.4. Câu hỏi bắt buộc](#74-câu-hỏi-bắt-buộc)
+  - [7.5. Tick helper](#75-tick-helper)
+  - [7.6. Invariant](#76-invariant)
+  - [7.7. Test](#77-test)
+  - [7.8. Demo](#78-demo)
+  - [7.9. Điều kiện qua chặng](#79-điều-kiện-qua-chặng)
+  - [7.10. Tag](#710-tag)
+- [CHẶNG 8 — READY LIST VÀ ROUND-ROBIN STRUCTURE](#chặng-8-ready-list-và-round-robin-structure)
+  - [8.1. Mục tiêu](#81-mục-tiêu)
+  - [8.2. Phạm vi](#82-phạm-vi)
+  - [8.3. Cấu trúc đề xuất](#83-cấu-trúc-đề-xuất)
+  - [8.4. Ready lists](#84-ready-lists)
+  - [8.5. Câu hỏi bắt buộc](#85-câu-hỏi-bắt-buộc)
+  - [8.6. Invariant](#86-invariant)
+  - [8.7. Host test](#87-host-test)
+  - [8.8. Board test](#88-board-test)
+  - [8.9. Tùy chọn: priority bitmap](#89-tùy-chọn-priority-bitmap)
+  - [8.10. Điều kiện qua chặng](#810-điều-kiện-qua-chặng)
+  - [8.11. Source tham khảo](#811-source-tham-khảo)
+  - [8.12. Tag](#812-tag)
+- [CHẶNG 9 — SEMAPHORE VÀ QUEUE](#chặng-9-semaphore-và-queue)
+  - [PHẦN 9A — SEMAPHORE](#phần-9a-semaphore)
+  - [PHẦN 9B — QUEUE](#phần-9b-queue)
+  - [9.3. Điều kiện qua chặng](#93-điều-kiện-qua-chặng)
+  - [9.4. Source tham khảo](#94-source-tham-khảo)
+  - [9.5. Tag](#95-tag)
+- [CHẶNG 10 — TÍCH HỢP, KIỂM TRA VÀ TỔNG KẾT](#chặng-10-tích-hợp-kiểm-tra-và-tổng-kết)
+  - [10.1. Mục tiêu](#101-mục-tiêu)
+  - [10.2. Không làm gì trong chặng này?](#102-không-làm-gì-trong-chặng-này)
+  - [10.3. Câu hỏi tổng hợp bắt buộc](#103-câu-hỏi-tổng-hợp-bắt-buộc)
+  - [10.4. Assert cơ bản](#104-assert-cơ-bản)
+  - [10.5. Stack kiểm tra cơ bản](#105-stack-kiểm-tra-cơ-bản)
+  - [10.6. Demo tổng hợp](#106-demo-tổng-hợp)
+  - [10.7. Test tổng hợp](#107-test-tổng-hợp)
+  - [10.8. Tài liệu cuối cùng](#108-tài-liệu-cuối-cùng)
+  - [10.9. Known limitations phải ghi rõ](#109-known-limitations-phải-ghi-rõ)
+  - [10.10. Điều kiện hoàn thành](#1010-điều-kiện-hoàn-thành)
+  - [10.11. Tag](#1011-tag)
+- [PHẦN III — PHỤ LỤC](#phần-iii-phụ-lục)
+  - [A. Các extension tùy chọn](#a-các-extension-tùy-chọn)
+  - [B. Bảng tiến độ](#b-bảng-tiến-độ)
+  - [C. Lộ trình 14 ngày gợi ý](#c-lộ-trình-14-ngày-gợi-ý)
+  - [D. Câu nhắc quan trọng nhất](#d-câu-nhắc-quan-trọng-nhất)
+
+---
+
+# PHẦN I — NGUYÊN TẮC VÀ PHẠM VI
+
 # 1. Cách sử dụng roadmap
 
 Roadmap này là tài liệu làm việc xuyên suốt project. Không nên đọc một lần rồi để đó. Trước mỗi chặng:
@@ -225,6 +369,8 @@ Không đọc toàn bộ `tasks.c` từ đầu đến cuối.
 | M10 | Tích hợp và tổng kết | ntos educational release |
 
 ---
+
+# PHẦN II — LỘ TRÌNH THEO CHẶNG
 
 # CHẶNG 0 — BARE-METAL FOUNDATION
 
@@ -1175,11 +1321,11 @@ Chặng này chia thành hai phần. Semaphore trước, queue sau.
 
 ## PHẦN 9A — SEMAPHORE
 
-### Mục tiêu
+### 9A.1. Mục tiêu
 
 Task có thể block chờ một event; ISR có thể đánh thức task.
 
-### Data structure
+### 9A.2. Data structure
 
 ```c
 typedef struct
@@ -1190,7 +1336,7 @@ typedef struct
 } ntos_semaphore_t;
 ```
 
-### API
+### 9A.3. API
 
 ```c
 void ntos_sem_init(
@@ -1210,7 +1356,7 @@ ntos_status_t ntos_sem_give_from_isr(
     bool *higher_priority_task_woken);
 ```
 
-### Câu hỏi bắt buộc
+### 9A.4. Câu hỏi bắt buộc
 
 1. Semaphore dùng để làm gì?
 2. Binary và counting khác nhau thế nào?
@@ -1225,7 +1371,7 @@ ntos_status_t ntos_sem_give_from_isr(
 11. Timeout cần thiết tới mức nào trong bản học tập?
 12. Nếu chưa làm event timeout phức tạp, có thể giới hạn API ra sao?
 
-### Phạm vi đơn giản hóa
+### 9A.5. Phạm vi đơn giản hóa
 
 Bản đầu có thể hỗ trợ:
 
@@ -1236,7 +1382,7 @@ timeout = WAIT_FOREVER
 
 Timeout hữu hạn là tùy chọn.
 
-### Invariant
+### 9A.6. Invariant
 
 - `count <= max_count`.
 - Waiter phải BLOCKED.
@@ -1245,7 +1391,7 @@ Timeout hữu hạn là tùy chọn.
 - ISR API không block.
 - ISR API không gọi normal API.
 
-### Test
+### 9A.7. Test
 
 - Give trước take.
 - Take trước give.
@@ -1257,7 +1403,7 @@ Timeout hữu hạn là tùy chọn.
 - Count max.
 - Invalid pointer.
 
-### Demo
+### 9A.8. Demo
 
 ```text
 EXTI button ISR
@@ -1270,11 +1416,11 @@ EXTI button ISR
 
 ## PHẦN 9B — QUEUE
 
-### Mục tiêu
+### 9B.1. Mục tiêu
 
 Truyền fixed-size item giữa task và ISR.
 
-### Data structure
+### 9B.2. Data structure
 
 ```c
 typedef struct
@@ -1291,7 +1437,7 @@ typedef struct
 } ntos_queue_t;
 ```
 
-### Phạm vi đơn giản hóa
+### 9B.3. Phạm vi đơn giản hóa
 
 Bắt buộc:
 
@@ -1313,7 +1459,7 @@ Tùy chọn:
 - Receive from ISR
 ```
 
-### API
+### 9B.4. API
 
 ```c
 ntos_status_t ntos_queue_init_static(
@@ -1338,7 +1484,7 @@ ntos_status_t ntos_queue_send_from_isr(
     bool *higher_priority_task_woken);
 ```
 
-### Câu hỏi bắt buộc
+### 9B.5. Câu hỏi bắt buộc
 
 1. Ring buffer là gì?
 2. Full và empty được phân biệt thế nào?
@@ -1355,7 +1501,7 @@ ntos_status_t ntos_queue_send_from_isr(
 13. Copy item lớn trong ISR ảnh hưởng gì?
 14. Queue khác message queue riêng mỗi task ra sao?
 
-### Invariant
+### 9B.6. Invariant
 
 - `count <= capacity`.
 - Index luôn trong range.
@@ -1367,7 +1513,7 @@ ntos_status_t ntos_queue_send_from_isr(
 - Không malloc.
 - ISR send không block.
 
-### Test
+### 9B.7. Test
 
 - Capacity 1.
 - Capacity 2.
@@ -1381,7 +1527,7 @@ ntos_status_t ntos_queue_send_from_isr(
 - ISR producer.
 - Hàng trăm nghìn operations.
 
-### Demo
+### 9B.8. Demo
 
 ```text
 USART RX ISR
@@ -1599,9 +1745,11 @@ v1.0.0-educational
 
 ---
 
-# 6. Các extension tùy chọn
+# PHẦN III — PHỤ LỤC
 
-## 6.1. Mutex đơn giản
+## A. Các extension tùy chọn
+
+### A.1. Mutex đơn giản
 
 Chỉ làm nếu muốn học priority inversion:
 
@@ -1621,30 +1769,32 @@ Không cần:
 - transitive inheritance
 ```
 
-## 6.2. Ordered delayed list
+### A.2. Ordered delayed list
 
 Làm nếu muốn hiểu sâu hơn cách RTOS tránh quét toàn bộ task.
 
-## 6.3. Dual delayed lists
+### A.3. Dual delayed lists
 
 Làm nếu muốn hiểu FreeRTOS tick overflow.
 
-## 6.4. Software timer đơn giản
+### A.4. Software timer đơn giản
 
 Một timer task và ordered timer list, không cần command queue quá phức tạp.
 
-## 6.5. Runtime stats
+### A.5. Runtime stats
 
 Đếm thời gian task bằng hardware timer.
 
 ---
 
-# 7. Bảng tiến độ
+## B. Bảng tiến độ
+
+> Cập nhật lần cuối: 2026-07-13, đối chiếu trực tiếp với code trong `kernel/`, `port/cortex_m3/`, `labs/`. Sửa lại bảng này mỗi khi qua chặng — đừng để nó trôi khỏi thực tế.
 
 | Chặng | Nội dung | Code | Test | Docs | Tag |
 |---:|---|:---:|:---:|:---:|:---:|
-| 0 | Bare-metal | [ ] | [ ] | [ ] | [ ] |
-| 1 | MSP/PSP/Exception | [ ] | [ ] | [ ] | [ ] |
+| 0 | Bare-metal | [x] | [ ] | [ ] | [ ] |
+| 1 | MSP/PSP/Exception | [x] | [ ] | [ ] | [ ] |
 | 2 | TCB/Initial stack | [ ] | [ ] | [ ] | [ ] |
 | 3 | First task/SVC | [ ] | [ ] | [ ] | [ ] |
 | 4 | Cooperative/PendSV | [ ] | [ ] | [ ] | [ ] |
@@ -1655,9 +1805,16 @@ Một timer task và ordered timer list, không cần command queue quá phức 
 | 9 | Semaphore/Queue | [ ] | [ ] | [ ] | [ ] |
 | 10 | Integration | [ ] | [ ] | [ ] | [ ] |
 
+Ghi chú:
+
+- **Chặng 0** — Build/flash/debug qua CMake + `scripts/build.sh`/`flash.sh` đã chạy được (`bsp/stm32f10x/`, linker, startup). Checklist test §0.6 (reset 50 lần, power cycle, kiểm tra `.data`/`.bss`...) chưa có bằng chứng ghi lại, nên cột Test để trống.
+- **Chặng 1** — `labs/01_exception_frame`, `labs/02_msp_psp`, `labs/03_svc` đã có và đi kèm báo cáo chi tiết `labs/cortex_m3_exception_msp_psp_svc_report.md`. Cột Docs để trống vì `docs/context_switch.md` (tài liệu chính thức theo §1.5) vẫn còn là placeholder một dòng, chưa rút nội dung từ report vào.
+- **Chặng 2 trở đi** — `kernel/*.c` và `port/cortex_m3/*.c` hiện toàn bộ là stub `TODO(stage N)`, chưa có implementation thật. `include/ntos/*.h` đã khai báo API nhưng chưa khớp hết với bản thiết kế trong `ntos_design.md` (chưa có `ntos_config.h`, `wake_tick`, `ready_item`/`wait_item` trong TCB thật).
+- Không có git tag nào trong repo tại thời điểm cập nhật — cột Tag toàn bộ để trống cho tới khi tag đầu tiên (`v0.0.1-bare-metal`) được tạo.
+
 ---
 
-# 8. Lộ trình 14 ngày gợi ý
+## C. Lộ trình 14 ngày gợi ý
 
 | Ngày | Nội dung |
 |---:|---|
@@ -1680,7 +1837,7 @@ Không bắt buộc hoàn thành trong 14 ngày. Mục tiêu là không bỏ qua
 
 ---
 
-# 9. Câu nhắc quan trọng nhất
+## D. Câu nhắc quan trọng nhất
 
 > Mỗi tính năng kernel phải được mô tả bằng ba câu:
 >

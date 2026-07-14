@@ -223,6 +223,39 @@ Chịu trách nhiệm:
 - Linker.
 - Không chứa scheduler logic.
 
+## 5.8. Quy ước đặt tên hàm
+
+### Public API
+
+Public API (khai báo trong `include/ntos/*.h`, dùng được từ ngoài module) dùng tiền tố `ntos_`:
+
+```c
+ntos_<module>_<action>()
+```
+
+Ví dụ: `ntos_task_create_static()`, `ntos_yield()`, `ntos_delay()`.
+
+### Static helper nội bộ một file `.c`
+
+Hàm `static` chỉ dùng trong một file `.c` **bỏ tiền tố `ntos_`**, nhưng vẫn giữ tên module ở đầu để không quá chung chung:
+
+```c
+<module>_<action>()
+```
+
+Ví dụ trong `kernel/ntos_task.c`:
+
+- `task_return_error()`
+- `task_build_initial_stack()`
+- `task_validate_create_arguments()`
+
+Không dùng tên chung chung không gắn module, ví dụ `init()`, `validate()`, `setup()`.
+
+Lý do:
+
+- Nhìn tên phân biệt ngay đâu là public API (`ntos_...`), đâu là helper nội bộ file (`<module>_...`).
+- Tên ngắn hơn `ntos_<module>_...` nhưng vẫn đủ rõ ràng thuộc module nào nhờ tiền tố `<module>_`.
+
 ---
 
 # 6. Cấu hình compile-time
