@@ -1,11 +1,7 @@
 .syntax unified
 .cpu cortex-m3
 .thumb
-.global SVC_Handler
-.type SVC_Handler, %function
-SVC_Handler:
-    /* TODO(stage 3): restore first task. */
-    bx lr
+/* SVC_Handler: chuyen sang naked C function tai port/cortex_m3/ntos_port.c (Chang 3). */
 .global PendSV_Handler
 .type PendSV_Handler, %function
 PendSV_Handler:

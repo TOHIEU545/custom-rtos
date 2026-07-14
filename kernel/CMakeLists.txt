@@ -3,5 +3,5 @@ add_library(ntos_kernel STATIC ntos_kernel.c ntos_task.c ntos_list.c ntos_assert
 
 target_include_directories(ntos_kernel
     PUBLIC ${CMAKE_SOURCE_DIR}/include
-    PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/internal)
+    PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/internal ${CMAKE_SOURCE_DIR}/port/cortex_m3)
 target_link_libraries(ntos_kernel PUBLIC ntos_compiler_options cmsis)

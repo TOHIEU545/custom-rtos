@@ -1,16 +1,9 @@
-/**
- * @file ntos_task.c
- * @brief Tạo task tĩnh và dựng initial stack frame cho Cortex-M3 (Chặng 2).
- */
 #include <ntos/ntos_config_default.h>
 #include <ntos/ntos_task.h>
 
 #define NTOS_TASK_FRAME_WORDS ((size_t)16U) /* 8 word hardware frame + 8 word R4-R11 */
 #define NTOS_TASK_INITIAL_XPSR 0x01000000U  /* EPSR.T set - Cortex-M chi co Thumb state */
 
-/**
- * @brief Hàm bẫy lỗi khi task entry return - task không được phép return.
- */
 static void task_return_error(void)
 {
     for (;;)
@@ -18,9 +11,6 @@ static void task_return_error(void)
     }
 }
 
-/**
- * @brief Xem khai báo và mô tả tham số đầy đủ tại include/ntos/ntos_task.h.
- */
 ntos_status_t ntos_task_create_static(ntos_tcb_t *tcb, const char *name, ntos_task_entry_t entry,
                                       void *argument, uint32_t *stack, size_t stack_words,
                                       ntos_priority_t priority)
@@ -64,19 +54,19 @@ ntos_status_t ntos_task_create_static(ntos_tcb_t *tcb, const char *name, ntos_ta
     *(--sp) = NTOS_TASK_INITIAL_XPSR;
     *(--sp) = (uint32_t)entry;             /* PC */
     *(--sp) = (uint32_t)task_return_error; /* LR */
-    *(--sp) = 0x12121212U;                 /* R12 */
-    *(--sp) = 0x03030303U;                 /* R3 */
-    *(--sp) = 0x02020202U;                 /* R2 */
-    *(--sp) = 0x01010101U;                 /* R1 */
+    *(--sp) = 0x0000000CU;                 /* R12 */
+    *(--sp) = 0x00000003U;                 /* R3 */
+    *(--sp) = 0x00000002U;                 /* R2 */
+    *(--sp) = 0x00000001U;                 /* R1 */
     *(--sp) = (uint32_t)argument;          /* R0 */
-    *(--sp) = 0x11111111U;                 /* R11 */
-    *(--sp) = 0x10101010U;                 /* R10 */
-    *(--sp) = 0x09090909U;                 /* R9 */
-    *(--sp) = 0x08080808U;                 /* R8 */
-    *(--sp) = 0x07070707U;                 /* R7 */
-    *(--sp) = 0x06060606U;                 /* R6 */
-    *(--sp) = 0x05050505U;                 /* R5 */
-    *(--sp) = 0x04040404U;                 /* R4 */
+    *(--sp) = 0x0000000BU;                 /* R11 */
+    *(--sp) = 0x0000000AU;                 /* R10 */
+    *(--sp) = 0x00000009U;                 /* R9 */
+    *(--sp) = 0x00000008U;                 /* R8 */
+    *(--sp) = 0x00000007U;                 /* R7 */
+    *(--sp) = 0x00000006U;                 /* R6 */
+    *(--sp) = 0x00000005U;                 /* R5 */
+    *(--sp) = 0x00000004U;                 /* R4 */
 
     tcb->stack_pointer = sp;
     tcb->stack_low = stack;

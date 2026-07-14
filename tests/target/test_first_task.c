@@ -1,0 +1,75 @@
+#include <ntos/ntos.h>
+#include <gpio.h>
+#include <stddef.h>
+#include <stdint.h>
+
+#define STACK_WORDS ((size_t)64U)
+#define TASK_ARGUMENT ((void *)0x12345678U)
+
+#define LED_PORT BSP_GPIO_PORT_A
+#define LED_PIN 8U
+#define BLINK_DELAY_LOOPS 100U
+
+static ntos_tcb_t first_task_tcb;
+static uint32_t first_task_stack[STACK_WORDS];
+
+/* Debugger doc cac bien nay sau khi task chay de kiem chung flow. */
+static volatile uint32_t g_argument;
+static volatile uint32_t g_psp;
+static volatile uint32_t g_msp;
+static volatile uint32_t g_control;
+static volatile uint32_t g_ipsr;
+static volatile uint32_t *g_local_addr;
+
+static void delay_busy(uint32_t loops)
+{
+    volatile uint32_t i, j;
+    for (i = 0; i < loops; i++)
+    {
+        for (j = 0; j < 0x2aff; j++)
+        {
+
+        }
+    }
+}
+
+static void first_task(void *argument)
+{
+    uint32_t local_marker = 0xC0FFEEU;
+
+    g_argument = (uint32_t)(uintptr_t)argument;
+    g_local_addr = &local_marker;
+
+    __asm volatile("mrs %0, psp" : "=r"(g_psp));
+    __asm volatile("mrs %0, msp" : "=r"(g_msp));
+    __asm volatile("mrs %0, control" : "=r"(g_control));
+    __asm volatile("mrs %0, ipsr" : "=r"(g_ipsr));
+
+    bsp_gpio_config(LED_PORT, LED_PIN, BSP_GPIO_MODE_OUTPUT_PUSH_PULL);
+
+    for (;;)
+    {
+        bsp_gpio_toggle(LED_PORT, LED_PIN);
+        delay_busy(BLINK_DELAY_LOOPS);
+    }
+}
+
+int main(void)
+{
+    ntos_status_t status =
+        ntos_task_create_static(&first_task_tcb, "first_task", first_task, TASK_ARGUMENT,
+                                first_task_stack, STACK_WORDS, 0U);
+
+    if (status != NTOS_OK)
+    {
+        for (;;)
+        {
+        }
+    }
+
+    ntos_start(&first_task_tcb);
+
+    for (;;)
+    {
+    }
+}
