@@ -1,6 +1,9 @@
 #include <ntos/ntos_config_default.h>
 #include <ntos/ntos_task.h>
 
+#include "ntos_kernel_internal.h"
+#include "ntos_port.h"
+
 #define NTOS_TASK_FRAME_WORDS ((size_t)16U) /* 8 word hardware frame + 8 word R4-R11 */
 #define NTOS_TASK_INITIAL_XPSR 0x01000000U  /* EPSR.T set - Cortex-M chi co Thumb state */
 
@@ -78,11 +81,14 @@ ntos_status_t ntos_task_create_static(ntos_tcb_t *tcb, const char *name, ntos_ta
     tcb->priority = priority;
     tcb->state = NTOS_TASK_READY;
 
+    ntos_scheduler_register_task(tcb);
+
     return NTOS_OK;
 }
 
 void ntos_yield(void)
-{ /* TODO(stage 4). */
+{
+    ntos_port_request_context_switch();
 }
 void ntos_delay(ntos_tick_t ticks)
 {

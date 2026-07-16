@@ -54,8 +54,8 @@ ntos_status_t ntos_task_create_static(ntos_tcb_t *tcb, const char *name, ntos_ta
                                       ntos_priority_t priority);
 
 /**
- * @brief Nhường CPU cho task khác cùng mức ưu tiên.
- * @note TODO(stage 4) - chưa implement, sẽ request context switch qua PendSV.
+ * @brief Nhường CPU cho task khác (round-robin, Chặng 4). Chỉ request PendSV, không tự switch.
+ * @note Chỉ gọi từ task context (Thread mode). Không block, không có tác dụng ISR.
  */
 void ntos_yield(void);
 
