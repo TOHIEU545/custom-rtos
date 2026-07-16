@@ -1,17 +1,15 @@
 #include <ntos/ntos.h>
-#include <gpio.h>
+#include <board.h>
 #include <stddef.h>
 #include <stdint.h>
 
 #define STACK_WORDS ((size_t)64U)
 #define TASK_ARGUMENT ((void *)0x12345678U)
 
-#define LED_PORT BSP_GPIO_PORT_A
-#define LED_PIN 8U
 #define BLINK_DELAY_LOOPS 100U
 
 static ntos_tcb_t first_task_tcb;
-static uint32_t first_task_stack[STACK_WORDS];
+static _Alignas(8) uint32_t first_task_stack[STACK_WORDS];
 
 /* Debugger doc cac bien nay sau khi task chay de kiem chung flow. */
 static volatile uint32_t g_argument;
@@ -45,11 +43,11 @@ static void first_task(void *argument)
     __asm volatile("mrs %0, control" : "=r"(g_control));
     __asm volatile("mrs %0, ipsr" : "=r"(g_ipsr));
 
-    bsp_gpio_config(LED_PORT, LED_PIN, BSP_GPIO_MODE_OUTPUT_PUSH_PULL);
+    board_init();
 
     for (;;)
     {
-        bsp_gpio_toggle(LED_PORT, LED_PIN);
+        board_led_toggle(BOARD_LED_D0);
         delay_busy(BLINK_DELAY_LOOPS);
     }
 }
