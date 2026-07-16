@@ -1,5 +1,6 @@
 #include "gpio.h"
 
+#include "rcc.h"
 #include "stm32f10x.h"
 
 static GPIO_TypeDef *gpio_port_reg(bsp_gpio_port_t port)
@@ -24,16 +25,16 @@ static void gpio_clock_enable(bsp_gpio_port_t port)
     switch (port)
     {
     case BSP_GPIO_PORT_A:
-        RCC->APB2ENR |= RCC_APB2ENR_IOPAEN;
+        bsp_rcc_enable(BSP_RCC_PERIPH_GPIOA);
         break;
     case BSP_GPIO_PORT_B:
-        RCC->APB2ENR |= RCC_APB2ENR_IOPBEN;
+        bsp_rcc_enable(BSP_RCC_PERIPH_GPIOB);
         break;
     case BSP_GPIO_PORT_C:
-        RCC->APB2ENR |= RCC_APB2ENR_IOPCEN;
+        bsp_rcc_enable(BSP_RCC_PERIPH_GPIOC);
         break;
     case BSP_GPIO_PORT_D:
-        RCC->APB2ENR |= RCC_APB2ENR_IOPDEN;
+        bsp_rcc_enable(BSP_RCC_PERIPH_GPIOD);
         break;
     default:
         break;
@@ -55,6 +56,10 @@ void bsp_gpio_config(bsp_gpio_port_t port, uint8_t pin, bsp_gpio_mode_t mode)
     case BSP_GPIO_MODE_OUTPUT_PUSH_PULL:
         mode_bits = 0x3U; /* output, toc do 50 MHz */
         cnf_bits = 0x0U;  /* push-pull */
+        break;
+    case BSP_GPIO_MODE_OUTPUT_ALT_PUSH_PULL:
+        mode_bits = 0x3U; /* output, toc do 50 MHz */
+        cnf_bits = 0x2U;  /* alternate function push-pull */
         break;
     case BSP_GPIO_MODE_INPUT_PULLUP:
         mode_bits = 0x0U;

@@ -23,6 +23,7 @@ typedef enum
     BSP_GPIO_MODE_INPUT_PULLUP,
     BSP_GPIO_MODE_INPUT_PULLDOWN,
     BSP_GPIO_MODE_OUTPUT_PUSH_PULL,
+    BSP_GPIO_MODE_OUTPUT_ALT_PUSH_PULL, /**< Dùng cho chân peripheral (UART TX,...). */
 } bsp_gpio_mode_t;
 
 /**
