@@ -81,10 +81,37 @@ ntos_tick_t ntos_tick_get(void)
     return ntos_tick_count;
 }
 
+bool ntos_tick_reached(ntos_tick_t now, ntos_tick_t target)
+{
+    /* Signed subtraction wraparound-safe: dung voi do lech <= INT32_MAX tick
+     * (xem NTOS_DELAY_MAX_TICKS trong kernel/ntos_task.c). KHONG dung "now >=
+     * target" - so sanh do se sai ngay khi ntos_tick_count wrap qua 0. */
+    return (int32_t)(now - target) >= 0;
+}
+
 void ntos_tick_handler(void)
 {
+    size_t i;
+
     ntos_tick_count++;
 
+    /* Wake delayed task (Chang 7): quet task_table O(n) - task_count nho
+     * (<= NTOS_MAX_TASKS) nen khong can delayed list rieng o giai doan nay.
+     * Task chi duoc wake dung 1 lan vi lan tick sau state khong con BLOCKED. */
+    for (i = 0U; i < task_count; ++i)
+    {
+        if ((task_table[i]->state == NTOS_TASK_BLOCKED) &&
+            ntos_tick_reached(ntos_tick_count, task_table[i]->wake_tick))
+        {
+            task_table[i]->state = NTOS_TASK_READY;
+        }
+    }
+
+    /* Request PendSV vo dieu kien moi tick (giu nguyen tu Chang 5) - da du de
+     * xu ly ca 2 truong hop: round-robin time-slice giua task cung priority,
+     * VA "high-priority task vua wake preempt low" - ntos_scheduler_select_next()
+     * (Chang 6) luon chon lai task priority cao nhat dang READY, nen khong can
+     * them logic so sanh priority rieng o day. */
     if (ntos_scheduler_running)
     {
         ntos_port_request_context_switch();

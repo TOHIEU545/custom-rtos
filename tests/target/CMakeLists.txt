@@ -37,4 +37,8 @@ ntos_add_firmware(test_idle_task
     MAIN ${CMAKE_CURRENT_SOURCE_DIR}/test_idle_task.c
 )
 
+ntos_add_firmware(test_delay
+    MAIN ${CMAKE_CURRENT_SOURCE_DIR}/test_delay.c
+)
+
 # Cac target test con lai se duoc them khi chang tuong ung bat dau.

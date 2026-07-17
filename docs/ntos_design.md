@@ -740,6 +740,21 @@ for each task:
         add ready list
 ```
 
+> **Trạng thái thực tế (Chặng 7):** `ntos_delay()` (kernel/ntos_task.c) dùng
+> critical section ngắn (`ntos_port_irq_save()`/`ntos_port_irq_restore()`) chỉ
+> để ghi `wake_tick`/`state = BLOCKED` của CHÍNH task hiện tại một cách atomic,
+> rồi mới `ntos_port_request_context_switch()` sau khi mở IRQ lại - tránh việc
+> SysTick chen vào giữa lúc state chưa kịp chuyển BLOCKED (nếu không, PendSV sẽ
+> demote nhầm task về READY thay vì giữ BLOCKED, làm mất delay). Assert cấm gọi
+> từ idle task (`ntos_current_tcb != &ntos_idle_task_tcb`) và cấm gọi ngoài task
+> context RUNNING. Chưa có ready list/delayed list riêng - `ntos_tick_handler()`
+> (kernel/ntos_kernel.c) quét thẳng `task_table[]` mỗi tick (O(n), n ≤
+> `NTOS_MAX_TASKS`). Không thêm logic so sánh priority riêng để quyết định có
+> pend PendSV hay không khi wake - PendSV vẫn được request **vô điều kiện mỗi
+> tick** như từ Chặng 5, và `ntos_scheduler_select_next()` (Chặng 6, không đổi)
+> tự động chọn lại task priority cao nhất đang READY, nên "high wake preempt
+> low" đến miễn phí từ thiết kế đã có, không cần code riêng.
+
 ## 13.4. Tick overflow
 
 Helper:
@@ -757,6 +772,14 @@ Giới hạn delay:
 delay <= INT32_MAX ticks
 ```
 
+> **Trạng thái thực tế (Chặng 7):** `ntos_tick_reached()` triển khai đúng như
+> trên, đặt tại kernel/ntos_kernel.c và export qua `kernel/internal/ntos_kernel_internal.h`
+> (không `static`) chỉ để test gọi trực tiếp với giá trị biên gần `UINT32_MAX`
+> (xem `tests/target/test_tick_overflow.c`) - tránh phải chờ tick thật sự tràn
+> số (~49 ngày ở 1 kHz). `ntos_delay()` **assert** nếu `ticks > INT32_MAX` (chữ
+> ký hàm là `void`, không có chỗ trả lỗi nên chọn assert thay vì im lặng cắt bớt
+> giá trị hoặc chỉ ghi tài liệu suông).
+
 ## 13.5. Delay zero
 
 Chọn một semantics và giữ nhất quán.
@@ -766,6 +789,9 @@ Khuyến nghị:
 ```text
 ntos_delay(0) == ntos_yield()
 ```
+
+> **Trạng thái thực tế (Chặng 7):** Đã chọn đúng khuyến nghị này - `ntos_delay(0)`
+> gọi thẳng `ntos_yield()` và return ngay, không set `wake_tick`/`BLOCKED`.
 
 ---
 

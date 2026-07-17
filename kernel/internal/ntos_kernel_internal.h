@@ -36,7 +36,15 @@ void ntos_scheduler_register_task(ntos_tcb_t *tcb);
  */
 void ntos_scheduler_select_next(void);
 
-/** @brief Xử lý 1 tick từ SysTick_Handler: tăng ntos_tick_count, request PendSV nếu scheduler đang chạy (Chặng 5). */
+/** @brief Xử lý 1 tick từ SysTick_Handler: tăng ntos_tick_count, wake task BLOCKED tới hạn (Chặng 7),
+ *         request PendSV nếu scheduler đang chạy (Chặng 5). */
 void ntos_tick_handler(void);
+
+/**
+ * @brief So sánh tick wraparound-safe: true nếu "now" đã tới hoặc vượt "target" (Chặng 7).
+ * @note Export chỉ để test gọi trực tiếp với giá trị biên gần UINT32_MAX, không cần
+ *       chờ ntos_tick_count tràn số thật (~49 ngày ở 1 kHz). Định nghĩa tại kernel/ntos_kernel.c.
+ */
+bool ntos_tick_reached(ntos_tick_t now, ntos_tick_t target);
 
 #endif

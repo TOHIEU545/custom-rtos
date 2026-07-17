@@ -36,6 +36,7 @@ typedef struct ntos_tcb
     const char *name;         /**< Tên task, dùng để debug. */
     ntos_priority_t priority; /**< Mức ưu tiên, số càng lớn càng ưu tiên. */
     ntos_task_state_t state;  /**< Trạng thái hiện tại của task. */
+    ntos_tick_t wake_tick;    /**< Chỉ có ý nghĩa khi state == NTOS_TASK_BLOCKED do ntos_delay() (Chặng 7). */
 } ntos_tcb_t;
 
 /**
@@ -60,9 +61,10 @@ ntos_status_t ntos_task_create_static(ntos_tcb_t *tcb, const char *name, ntos_ta
 void ntos_yield(void);
 
 /**
- * @brief Trì hoãn task hiện tại trong số tick chỉ định.
- * @param ticks Số tick cần chờ.
- * @note TODO(stage 7) - chưa implement.
+ * @brief Trì hoãn task hiện tại trong số tick chỉ định, không busy-wait (Chặng 7).
+ * @param ticks Số tick cần chờ. 0 tương đương ntos_yield(). Tối đa INT32_MAX
+ *              (giới hạn của phép so sánh tick wraparound-safe) - assert nếu vượt.
+ * @note Chỉ gọi từ task context (Thread mode), không gọi từ idle task.
  */
 void ntos_delay(ntos_tick_t ticks);
 #endif

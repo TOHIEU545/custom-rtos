@@ -1,11 +1,19 @@
+#include <ntos/ntos.h>
 #include <ntos/ntos_config_default.h>
 #include <ntos/ntos_task.h>
 
+#include "ntos_assert_internal.h"
 #include "ntos_kernel_internal.h"
 #include "ntos_port.h"
 
+#include <stdint.h>
+
 #define NTOS_TASK_FRAME_WORDS ((size_t)16U) /* 8 word hardware frame + 8 word R4-R11 */
 #define NTOS_TASK_INITIAL_XPSR 0x01000000U  /* EPSR.T set - Cortex-M chi co Thumb state */
+
+/* Gioi han cua ntos_delay(): phep so sanh tick wraparound-safe (ntos_tick_reached(),
+ * Chang 7) dung signed subtraction nen chi dung voi do lech <= INT32_MAX tick. */
+#define NTOS_DELAY_MAX_TICKS ((ntos_tick_t)INT32_MAX)
 
 static void task_return_error(void)
 {
@@ -80,6 +88,7 @@ ntos_status_t ntos_task_create_static(ntos_tcb_t *tcb, const char *name, ntos_ta
     tcb->name = name;
     tcb->priority = priority;
     tcb->state = NTOS_TASK_READY;
+    tcb->wake_tick = 0U; /* Chi co y nghia khi state == BLOCKED do ntos_delay() (Chang 7). */
 
     ntos_scheduler_register_task(tcb);
 
@@ -90,7 +99,33 @@ void ntos_yield(void)
 {
     ntos_port_request_context_switch();
 }
+
 void ntos_delay(ntos_tick_t ticks)
 {
-    (void)ticks; /* TODO(stage 7). */
+    ntos_irq_state_t irq_state;
+
+    if (ticks == 0U)
+    {
+        /* Quy uoc Chang 7: delay(0) tuong duong yield, khong block. */
+        ntos_yield();
+        return;
+    }
+
+    NTOS_ASSERT(ticks <= NTOS_DELAY_MAX_TICKS);
+    NTOS_ASSERT(ntos_current_tcb != NULL);
+    NTOS_ASSERT(ntos_current_tcb->state == NTOS_TASK_RUNNING); /* chi goi tu task context */
+    NTOS_ASSERT(ntos_current_tcb != &ntos_idle_task_tcb);      /* idle khong duoc block */
+
+    /* Critical section ngan: chi bao ve wake_tick + state cua chinh task hien
+     * tai khoi bi SysTick xen vao giua chung (neu PendSV chay truoc khi state
+     * kip chuyen BLOCKED, scheduler se demote nham ve READY thay vi giu BLOCKED -
+     * mat delay). Khong giu IRQ tat qua luc request context switch. */
+    irq_state = ntos_port_irq_save();
+
+    ntos_current_tcb->wake_tick = ntos_tick_get() + ticks;
+    ntos_current_tcb->state = NTOS_TASK_BLOCKED;
+
+    ntos_port_irq_restore(irq_state);
+
+    ntos_port_request_context_switch();
 }
