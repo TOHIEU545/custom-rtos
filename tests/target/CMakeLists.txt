@@ -19,4 +19,8 @@ ntos_add_firmware(test_register_preservation
 # TEST-ONLY: dung NTOS_ASSERT truc tiep (xem NTOS_CODING_CONVENTION.md muc 2.4).
 target_include_directories(test_register_preservation PRIVATE ${CMAKE_SOURCE_DIR}/kernel/internal)
 
+ntos_add_firmware(test_preemption
+    MAIN ${CMAKE_CURRENT_SOURCE_DIR}/test_preemption.c
+)
+
 # Cac target test con lai se duoc them khi chang tuong ung bat dau.
