@@ -1789,16 +1789,16 @@ Một timer task và ordered timer list, không cần command queue quá phức 
 
 ## B. Bảng tiến độ
 
-> Cập nhật lần cuối: 2026-07-13, đối chiếu trực tiếp với code trong `kernel/`, `port/cortex_m3/`, `labs/`. Sửa lại bảng này mỗi khi qua chặng — đừng để nó trôi khỏi thực tế.
+> Cập nhật lần cuối: 2026-07-17, đối chiếu trực tiếp với code trong `kernel/`, `port/cortex_m3/`, `labs/`. Sửa lại bảng này mỗi khi qua chặng — đừng để nó trôi khỏi thực tế.
 
 | Chặng | Nội dung | Code | Test | Docs | Tag |
 |---:|---|:---:|:---:|:---:|:---:|
 | 0 | Bare-metal | [x] | [ ] | [ ] | [ ] |
 | 1 | MSP/PSP/Exception | [x] | [ ] | [ ] | [ ] |
 | 2 | TCB/Initial stack | [x] | [x] | [x] | [ ] |
-| 3 | First task/SVC | [ ] | [ ] | [ ] | [ ] |
-| 4 | Cooperative/PendSV | [ ] | [ ] | [ ] | [ ] |
-| 5 | Preemptive/SysTick | [ ] | [ ] | [ ] | [ ] |
+| 3 | First task/SVC | [x] | [x] | [ ] | [ ] |
+| 4 | Cooperative/PendSV | [x] | [x] | [ ] | [ ] |
+| 5 | Preemptive/SysTick | [x] | [x] | [x] | [ ] |
 | 6 | State/Priority/Idle | [ ] | [ ] | [ ] | [ ] |
 | 7 | Delay | [ ] | [ ] | [ ] | [ ] |
 | 8 | Ready list | [ ] | [ ] | [ ] | [ ] |
@@ -1810,7 +1810,9 @@ Ghi chú:
 - **Chặng 0** — Build/flash/debug qua CMake + `scripts/build.sh`/`flash.sh` đã chạy được (`bsp/stm32f10x/`, linker, startup). Checklist test §0.6 (reset 50 lần, power cycle, kiểm tra `.data`/`.bss`...) chưa có bằng chứng ghi lại, nên cột Test để trống.
 - **Chặng 1** — `labs/01_exception_frame`, `labs/02_msp_psp`, `labs/03_svc` đã có và đi kèm báo cáo chi tiết `labs/cortex_m3_exception_msp_psp_svc_report.md`. Cột Docs để trống vì `docs/context_switch.md` (tài liệu chính thức theo §1.5) vẫn còn là placeholder một dòng, chưa rút nội dung từ report vào.
 - **Chặng 2** — Đã xong: `ntos_tcb_t` là type công khai đầy đủ tại `include/ntos/ntos_task.h` (không opaque), `kernel/internal/ntos_task_internal.h` chỉ re-export type này. `kernel/ntos_task.c` đã implement `ntos_task_create_static()` (validate tham số, dựng initial stack frame, fill pattern), build sạch. TCB hiện tại **không có** `wake_tick`/`ready_item`/`wait_item` — các field này cố ý để dành cho Chặng 7/8/9, đã ghi rõ trong `ntos_design.md` §8.1/§8.3.
-- **Chặng 3 trở đi** — `kernel/ntos_kernel.c` và `port/cortex_m3/*.c` hiện toàn bộ vẫn là stub `TODO(stage N)`, chưa có implementation thật.
+- **Chặng 3** — `ntos_start()` (kernel) + `SVC_Handler`/`ntos_port_start_scheduler()` (port) đã implement: SVC nạp R4-R11 và PSP của first task, exception return vào Thread mode dùng PSP. `test_first_task`/`test_initial_stack` đã có. Cột Docs để trống vì chưa có ghi chú "trạng thái thực tế" riêng trong `ntos_design.md` cho chặng này.
+- **Chặng 4** — `PendSV_Handler` (naked, port) save/restore R4-R11 + PSP, gọi `ntos_scheduler_select_next()` (kernel, round-robin qua `task_table[]`); `ntos_yield()` chỉ request PendSV qua `ntos_port_request_context_switch()`. `test_cooperative_scheduler`/`test_register_preservation` đã có. Cột Docs để trống vì lý do tương tự Chặng 3.
+- **Chặng 5** — Preemptive round-robin qua SysTick: `ntos_port_start_tick()` set priority PendSV/SysTick về thấp nhất rồi cấu hình `SysTick_Config()` ở `NTOS_TICK_RATE_HZ`; `SysTick_Handler` chỉ gọi `ntos_tick_handler()` (kernel) — tăng `ntos_tick_count` và pend PendSV nếu `ntos_scheduler_running`. Cờ `ntos_scheduler_running` được **`SVC_Handler`** (không phải `ntos_start()`) tự set `true` ngay sau khi PSP của first task hợp lệ (`msr psp, r0`), loại bỏ hoàn toàn khả năng SysTick pend PendSV khi PSP chưa sẵn sàng — kể cả trong khe hở lý thuyết giữa `__enable_irq()` và lệnh `svc` trong `ntos_port_start_scheduler()`. Test: `test_preemption` — 3 task CPU-bound (LED0 toggle, LED1 toggle, UART gửi counter qua `bsp_uart_write_string()`), không task nào gọi `ntos_yield()`/`ntos_delay()`; nếu SysTick preemption không hoạt động, `led1_task` (chạy đầu tiên) sẽ chiếm CPU và LED2/UART không bao giờ chạy — dùng LED/UART làm bằng chứng trực quan trên board thật thay vì chỉ đọc biến qua debugger. `test_register_preservation` (Chặng 4) chạy lại nguyên trạng làm regression cho R4-R11 dưới preemption. Xem `ntos_design.md` §5.6, §13.2 mục "Trạng thái thực tế (Chặng 5)". **Đã chạy trên board thật** — LED0/LED1 nháy và UART in counter đồng thời, xác nhận preemption hoạt động đúng dù không task nào gọi yield.
 - Không có git tag nào trong repo tại thời điểm cập nhật — cột Tag toàn bộ để trống cho tới khi tag đầu tiên (`v0.0.1-bare-metal`) được tạo.
 
 ---

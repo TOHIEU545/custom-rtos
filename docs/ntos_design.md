@@ -211,6 +211,15 @@ Chịu trách nhiệm:
 - NVIC priority.
 - Pend context switch.
 
+> **Trạng thái thực tế (Chặng 5):** `ntos_port_start_tick()` (port/cortex_m3/ntos_port.c)
+> set priority PendSV/SysTick về thấp nhất rồi gọi `SysTick_Config()` (CMSIS) ở
+> `NTOS_TICK_RATE_HZ`. `SysTick_Handler` chỉ gọi `ntos_tick_handler()` (kernel) -
+> không tự tăng tick, không tự đổi `ntos_current_tcb`, không tự pend PendSV.
+> `SVC_Handler` tự set `ntos_scheduler_running = true` ngay sau `msr psp, r0` (PSP
+> đã hợp lệ) — không phải `ntos_start()` set trước khi gọi SVC — để loại bỏ khả
+> năng SysTick pend PendSV khi PSP chưa sẵn sàng, kể cả trong khe hở giữa
+> `__enable_irq()` và lệnh `svc` trong `ntos_port_start_scheduler()`.
+
 ## 5.7. BSP
 
 Chịu trách nhiệm:
@@ -688,6 +697,12 @@ Không làm:
 - Callback dài.
 - Queue parsing.
 - Dynamic allocation.
+
+> **Trạng thái thực tế (Chặng 5):** `ntos_tick_handler()` (kernel/ntos_kernel.c)
+> mới chỉ tăng `ntos_tick_count` và pend PendSV nếu `ntos_scheduler_running`.
+> Wake delayed task/time-slice theo priority là việc của Chặng 6/7, chưa
+> implement - guard duy nhất hiện có là `ntos_scheduler_running` để SysTick
+> không context-switch trước khi first task start xong.
 
 ## 13.3. Delay representation
 
