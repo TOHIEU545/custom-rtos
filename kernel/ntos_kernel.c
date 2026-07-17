@@ -10,6 +10,8 @@
 #include <stdint.h>
 
 struct ntos_tcb *volatile ntos_current_tcb = NULL;
+volatile bool ntos_scheduler_running = false;
+static volatile ntos_tick_t ntos_tick_count = 0U;
 
 static ntos_tcb_t *task_table[NTOS_MAX_TASKS];
 static size_t task_count = 0U;
@@ -44,12 +46,29 @@ void ntos_start(ntos_tcb_t *first_task_tcb)
     first_task_tcb->state = NTOS_TASK_RUNNING;
     ntos_current_tcb = first_task_tcb;
 
+    /* Priority PendSV/SysTick va SysTick timer phai san sang truoc khi bat interrupt.
+     * ntos_scheduler_running KHONG duoc dat true o day - SVC_Handler (port) tu dat
+     * true ngay sau khi PSP cua first task hop le, de loai bo hoan toan kha nang
+     * SysTick pend PendSV truoc khi PSP san sang (vd. neu SysTick xen vao giua
+     * __enable_irq() va lenh svc trong ntos_port_start_scheduler()). */
+    ntos_port_start_tick();
+
     ntos_port_start_scheduler();
 }
 
 ntos_tick_t ntos_tick_get(void)
 {
-    return 0U; /* TODO(stage 5+). */
+    return ntos_tick_count;
+}
+
+void ntos_tick_handler(void)
+{
+    ntos_tick_count++;
+
+    if (ntos_scheduler_running)
+    {
+        ntos_port_request_context_switch();
+    }
 }
 
 void ntos_scheduler_register_task(ntos_tcb_t *tcb)

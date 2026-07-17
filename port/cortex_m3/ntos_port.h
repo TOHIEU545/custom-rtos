@@ -19,9 +19,15 @@ void ntos_port_start_scheduler(void) __attribute__((noreturn));
 
 /**
  * @brief Pend PendSV để yêu cầu context switch.
- * @note CHƯA có tác dụng thật - PendSV_Handler còn là stub (TODO stage 4).
+ * @note Dùng chung bởi ntos_yield() và ntos_tick_handler() (Chặng 5) - nơi duy nhất set PENDSVSET.
  */
 void ntos_port_request_context_switch(void);
+
+/**
+ * @brief Set priority PendSV/SysTick về thấp nhất rồi cấu hình + start SysTick ở NTOS_TICK_RATE_HZ.
+ * @note Gọi một lần trong ntos_start(), trước khi bật interrupt (Chặng 5).
+ */
+void ntos_port_start_tick(void);
 
 /**
  * @brief Vào critical section: lưu PRIMASK hiện tại rồi tắt interrupt.
