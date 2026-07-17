@@ -599,6 +599,16 @@ ntos_tcb_t *ntos_scheduler_select_highest_ready(void);
 
 Quét task table.
 
+> **Trạng thái thực tế (Chặng 6):** `ntos_scheduler_select_next()` (kernel/ntos_kernel.c)
+> làm đúng O(n) 2-pass trong `task_table[]` có sẵn (không dùng ready list riêng
+> như §11.4/§11.5 - để dành cho Chặng 8): Pass 1 tìm `highest_ready_priority`
+> trong các task đang READY; Pass 2 round-robin từ `current_task_index`, chỉ
+> dừng ở task READY có đúng priority đó. **Quyết định:** idle (priority 0) và
+> một app task cũng ở priority 0 (nếu có) sẽ round-robin bình thường với nhau -
+> không có special-case nào dành riêng cho idle trong scheduler, giữ đúng thiết
+> kế fixed-priority thuần nhất đã có. Nếu ai đó không muốn idle bị chia sẻ CPU,
+> chỉ cần không tạo task application ở priority 0.
+
 ## 11.4. Giai đoạn cuối: ready lists
 
 ```c
@@ -1026,6 +1036,15 @@ Không bắt buộc trong core educational version. Có thể thêm extension sa
 - Không dùng queue.
 - Không giữ semaphore.
 - Không chạy logic application.
+
+> **Trạng thái thực tế (Chặng 6):** `ntos_idle_task()` (kernel/ntos_kernel.c, static,
+> vòng lặp rỗng đúng như spec - chưa WFI) được `ntos_init()` tự tạo bằng
+> `ntos_task_create_static()` với TCB/stack tĩnh (`ntos_idle_task_tcb`,
+> `NTOS_IDLE_STACK_WORDS` word), priority 0. `ntos_idle_task_tcb` được export
+> qua `kernel/internal/ntos_kernel_internal.h` chỉ để test so sánh con trỏ
+> (`ntos_current_tcb == &ntos_idle_task_tcb`), không phải API công khai.
+> Test không gọi `ntos_init()` (Chặng 3-5) sẽ không có idle - không sao vì
+> chúng luôn có sẵn task application READY, không phụ thuộc idle.
 
 ---
 

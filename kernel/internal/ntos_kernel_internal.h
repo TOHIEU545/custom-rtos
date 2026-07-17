@@ -20,10 +20,20 @@ extern struct ntos_tcb *volatile ntos_current_tcb;
  */
 extern volatile bool ntos_scheduler_running;
 
+/**
+ * @brief TCB của idle task do kernel tự tạo trong ntos_init() (Chặng 6), priority 0.
+ * @note Export chỉ để test so sánh con trỏ (ntos_current_tcb == &ntos_idle_task_tcb).
+ *       Định nghĩa tại kernel/ntos_kernel.c.
+ */
+extern ntos_tcb_t ntos_idle_task_tcb;
+
 /** @brief Đăng ký tcb vào task_table của scheduler. Gọi từ ntos_task_create_static(). */
 void ntos_scheduler_register_task(ntos_tcb_t *tcb);
 
-/** @brief Chọn task kế tiếp cho PendSV context switch (round-robin, Chặng 4). */
+/**
+ * @brief Chọn task kế tiếp cho PendSV context switch: fixed-priority O(n), round-robin
+ *        giữa các task cùng priority cao nhất đang READY (Chặng 6).
+ */
 void ntos_scheduler_select_next(void);
 
 /** @brief Xử lý 1 tick từ SysTick_Handler: tăng ntos_tick_count, request PendSV nếu scheduler đang chạy (Chặng 5). */

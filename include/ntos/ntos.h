@@ -10,7 +10,10 @@
 #include <ntos/ntos_sem.h>
 #include <ntos/ntos_task.h>
 
-/** @brief Khởi tạo kernel trước khi tạo task. @note TODO(stage 2+). */
+/**
+ * @brief Khởi tạo kernel trước khi tạo task application - tạo idle task (priority 0, Chặng 6).
+ * @note Phải gọi trước ntos_task_create_static()/ntos_start() nếu muốn có idle task.
+ */
 void ntos_init(void);
 
 /**
@@ -19,6 +22,6 @@ void ntos_init(void);
  */
 void ntos_start(ntos_tcb_t *first_task_tcb) __attribute__((noreturn));
 
-/** @brief Đọc số tick hệ thống hiện tại. @note CHƯA IMPLEMENT (stage 5+) - luôn trả 0. */
+/** @brief Đọc số tick hệ thống hiện tại, tăng mỗi lần SysTick fire (Chặng 5). */
 ntos_tick_t ntos_tick_get(void);
 #endif
