@@ -13,9 +13,9 @@ extern uint32_t SystemCoreClock;
 
 void bsp_uart_init(uint32_t baudrate)
 {
-    /* USART1 nam tren APB2. Gia dinh APB2 prescaler = DIV1 (dung theo
-     * SetSysClockTo72() trong system_stm32f10x.c) nen PCLK2 == SystemCoreClock.
-     * Neu doi prescaler APB2 sau nay phai tinh lai PCLK2 cho dung. */
+    /* USART1 nằm trên APB2. Giả định APB2 prescaler = DIV1 (đúng theo
+     * SetSysClockTo72() trong system_stm32f10x.c) nên PCLK2 == SystemCoreClock.
+     * Nếu đổi prescaler APB2 sau này phải tính lại PCLK2 cho đúng. */
     uint32_t pclk2 = SystemCoreClock;
     uint32_t usartdiv_x100 = (pclk2 * 25U) / (4U * baudrate);
     uint32_t mantissa = usartdiv_x100 / 100U;

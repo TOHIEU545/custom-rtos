@@ -54,16 +54,16 @@ void bsp_gpio_config(bsp_gpio_port_t port, uint8_t pin, bsp_gpio_mode_t mode)
     switch (mode)
     {
     case BSP_GPIO_MODE_OUTPUT_PUSH_PULL:
-        mode_bits = 0x3U; /* output, toc do 50 MHz */
+        mode_bits = 0x3U; /* output, tốc độ 50 MHz */
         cnf_bits = 0x0U;  /* push-pull */
         break;
     case BSP_GPIO_MODE_OUTPUT_ALT_PUSH_PULL:
-        mode_bits = 0x3U; /* output, toc do 50 MHz */
+        mode_bits = 0x3U; /* output, tốc độ 50 MHz */
         cnf_bits = 0x2U;  /* alternate function push-pull */
         break;
     case BSP_GPIO_MODE_INPUT_PULLUP:
         mode_bits = 0x0U;
-        cnf_bits = 0x2U; /* input voi pull-up/pull-down, chon huong qua ODR */
+        cnf_bits = 0x2U; /* input với pull-up/pull-down, chọn hướng qua ODR */
         reg->ODR |= (1U << pin);
         break;
     case BSP_GPIO_MODE_INPUT_PULLDOWN:

@@ -10,16 +10,16 @@
  */
 typedef enum
 {
-    NTOS_OK = 0,
-    NTOS_ERR_INVALID_ARGUMENT,
-    NTOS_ERR_INVALID_STATE,
-    NTOS_ERR_INVALID_PRIORITY,
-    NTOS_ERR_INVALID_CONTEXT,
-    NTOS_ERR_TIMEOUT,
-    NTOS_ERR_QUEUE_FULL,
-    NTOS_ERR_QUEUE_EMPTY,
-    NTOS_ERR_RESOURCE_FULL,
-    NTOS_ERR_INTERNAL
+    NTOS_OK = 0,               /**< Thành công. */
+    NTOS_ERR_INVALID_ARGUMENT, /**< Tham số truyền vào không hợp lệ. */
+    NTOS_ERR_INVALID_STATE,    /**< Đối tượng đang ở trạng thái không cho phép thao tác này. */
+    NTOS_ERR_INVALID_PRIORITY, /**< Priority vượt quá giới hạn cho phép. */
+    NTOS_ERR_INVALID_CONTEXT,  /**< Gọi sai ngữ cảnh, ví dụ API task gọi từ ISR. */
+    NTOS_ERR_TIMEOUT,          /**< Hết thời gian chờ trước khi thao tác hoàn tất. */
+    NTOS_ERR_QUEUE_FULL,       /**< Queue đã đầy, không thể gửi thêm item. */
+    NTOS_ERR_QUEUE_EMPTY,      /**< Queue rỗng, không có item để nhận. */
+    NTOS_ERR_RESOURCE_FULL,    /**< Tài nguyên (vd. semaphore) đã đạt giới hạn tối đa. */
+    NTOS_ERR_INTERNAL          /**< Lỗi nội bộ kernel, không nên xảy ra trong vận hành bình thường. */
 } ntos_status_t;
 
 #endif

@@ -1,17 +1,17 @@
 /*
- * CHANG 6 - Buoc 6B: kiem tra fixed-priority scheduler O(n).
+ * Kiểm tra fixed-priority scheduler O(n).
  *
- * 3 task CPU-bound, khong goi ntos_yield()/ntos_delay():
+ * 3 task CPU-bound, không gọi ntos_yield()/ntos_delay():
  *   - led0_task  (priority cao)  : toggle LED0.
- *   - uart_task  (priority cao)  : gui counter qua UART, cung in ket qua
- *                                  starvation cua led1_task.
- *   - led1_task  (priority thap) : toggle LED1.
+ *   - uart_task  (priority cao)  : gửi counter qua UART, cùng in kết quả
+ *                                  starvation của led1_task.
+ *   - led1_task  (priority thấp) : toggle LED1.
  *
- * led0_task va uart_task cung priority cao nen round-robin voi nhau; led1_task
- * priority thap hon nen KHONG BAO GIO duoc chon khi con task priority cao dang
- * READY - LED1 se dung yen vinh vien (starvation hop le, khong phai bug). Neu
- * scheduler con la round-robin phang (chua ap dung priority), LED1 se toggle
- * deu nhu LED0 va dong "led1_starved" se bao FAIL.
+ * led0_task và uart_task cùng priority cao nên round-robin với nhau; led1_task
+ * priority thấp hơn nên KHÔNG BAO GIỜ được chọn khi còn task priority cao đang
+ * READY - LED1 sẽ đứng yên vĩnh viễn (starvation hợp lệ, không phải bug). Nếu
+ * scheduler còn là round-robin phẳng (chưa áp dụng priority), LED1 sẽ toggle
+ * đều như LED0 và dòng "led1_starved" sẽ báo FAIL.
  */
 #include <ntos/ntos.h>
 #include <board.h>
@@ -33,7 +33,7 @@ static _Alignas(8) uint32_t led0_task_stack[STACK_WORDS];
 static _Alignas(8) uint32_t uart_task_stack[STACK_WORDS];
 static _Alignas(8) uint32_t led1_task_stack[STACK_WORDS];
 
-/* Debugger/UART doc cac bien nay de kiem chung led1_task bi starve. */
+/* Debugger/UART đọc các biến này để kiểm chứng led1_task bị starve. */
 static volatile uint32_t g_led0_toggle_count;
 static volatile uint32_t g_uart_send_count;
 static volatile uint32_t g_led1_toggle_count;
@@ -46,7 +46,7 @@ static void busy_wait(volatile uint32_t count)
     }
 }
 
-/* TEST-ONLY: doi so nguyen khong dau sang chuoi thap phan, khong dung stdio. */
+/* TEST-ONLY: đổi số nguyên không dấu sang chuỗi thập phân, không dùng stdio. */
 static void uart_write_uint32(uint32_t value)
 {
     char digits[10];
@@ -70,7 +70,7 @@ static void uart_write_uint32(uint32_t value)
     }
 }
 
-/* Priority cao - round-robin voi uart_task. */
+/* Priority cao - round-robin với uart_task. */
 static void led0_task(void *argument)
 {
     (void)argument;
@@ -83,7 +83,7 @@ static void led0_task(void *argument)
     }
 }
 
-/* Priority cao - round-robin voi led0_task; dong thoi bao cao PASS/FAIL cua
+/* Priority cao - round-robin với led0_task; đồng thời báo cáo PASS/FAIL của
  * starvation qua UART. */
 static void uart_task(void *argument)
 {
@@ -103,8 +103,8 @@ static void uart_task(void *argument)
     }
 }
 
-/* Priority thap - khong bao gio duoc scheduler chon khi led0_task/uart_task
- * van con READY, nen LED1 se dung yen vinh vien. */
+/* Priority thấp - không bao giờ được scheduler chọn khi led0_task/uart_task
+ * vẫn còn READY, nên LED1 sẽ đứng yên vĩnh viễn. */
 static void led1_task(void *argument)
 {
     (void)argument;
@@ -123,7 +123,7 @@ int main(void)
     ntos_status_t status_uart;
     ntos_status_t status_led1;
 
-    /* board_init() da lam ca GPIO LED lan bsp_uart_init() - khong goi lai o day. */
+    /* board_init() đã làm cả GPIO LED lẫn bsp_uart_init() - không gọi lại ở đây. */
     board_init();
     ntos_init();
 

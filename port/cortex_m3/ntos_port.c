@@ -40,12 +40,12 @@ void ntos_port_start_scheduler(void)
 
 void ntos_port_start_tick(void)
 {
-    /* PendSV phai la exception uu tien thap nhat - khong duoc chen ngang bat ky
-     * handler nao khac, context switch chi xay ra khi khong con viec gi uu tien hon. */
+    /* PendSV phải là exception ưu tiên thấp nhất - không được chen ngang bất kỳ
+     * handler nào khác, context switch chỉ xảy ra khi không còn việc gì ưu tiên hơn. */
     NVIC_SetPriority(PendSV_IRQn, (uint32_t)((1UL << __NVIC_PRIO_BITS) - 1UL));
 
-    /* SysTick_Config() tu set priority SysTick ve thap nhat (bang PendSV) va bat
-     * TICKINT + ENABLE; tra ve khac 0 neu reload value vuot qua 24-bit cua SysTick. */
+    /* SysTick_Config() tự set priority SysTick về thấp nhất (bằng PendSV) và bật
+     * TICKINT + ENABLE; trả về khác 0 nếu reload value vượt quá 24-bit của SysTick. */
     NTOS_ASSERT(SysTick_Config(SystemCoreClock / NTOS_TICK_RATE_HZ) == 0U);
 }
 
@@ -90,7 +90,7 @@ __attribute__((naked)) void PendSV_Handler(void)
 
 void SysTick_Handler(void)
 {
-    /* Handler chi goi vao kernel - khong tu tang PSP/ntos_current_tcb, khong tu
+    /* Handler chỉ gọi vào kernel - không tự tăng PSP/ntos_current_tcb, không tự
      * pend PendSV (xem ntos_tick_handler() trong kernel/ntos_kernel.c). */
     ntos_tick_handler();
 }

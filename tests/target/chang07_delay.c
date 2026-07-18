@@ -1,15 +1,15 @@
 /*
- * CHANG 7 - Demo ntos_delay(): 3 task, khong task nao busy-wait de tao nhip.
+ * Demo ntos_delay(): 3 task, không task nào busy-wait để tạo nhịp.
  *
- *   task_uart (priority cao nhat) -> in counter qua UART.
- *   task_led0 (priority thap hon) -> toggle LED0.
- *   task_led1 (priority thap hon, bang task_led0)  -> toggle LED1.
+ *   task_uart (priority cao nhất) -> in counter qua UART.
+ *   task_led0 (priority thấp hơn) -> toggle LED0.
+ *   task_led1 (priority thấp hơn, bằng task_led0)  -> toggle LED1.
  *
- * Ca 3 deu goi ntos_delay(...) thay vi busy_wait() nhu Chang 5/6. task_led0 va
- * task_led1 cung priority nen round-robin voi nhau moi khi ca 2 cung READY;
- * task_uart priority cao hon nen luon duoc chon truoc neu no cung READY tai
- * thoi diem do - nhung vi ca 3 phan lon thoi gian deu dang BLOCKED (delay),
- * phan lon thoi gian idle (priority 0) moi la task duy nhat con READY.
+ * Cả 3 đều gọi ntos_delay(...) thay vì busy_wait(). task_led0 và task_led1
+ * cùng priority nên round-robin với nhau mỗi khi cả 2 cùng READY; task_uart
+ * priority cao hơn nên luôn được chọn trước nếu nó cũng READY tại thời điểm
+ * đó - nhưng vì cả 3 phần lớn thời gian đều đang BLOCKED (delay), phần lớn
+ * thời gian idle (priority 0) mới là task duy nhất còn READY.
  */
 #include <ntos/ntos.h>
 #include <board.h>
@@ -31,7 +31,7 @@ static _Alignas(8) uint32_t task_uart_stack[STACK_WORDS];
 static _Alignas(8) uint32_t task_led0_stack[STACK_WORDS];
 static _Alignas(8) uint32_t task_led1_stack[STACK_WORDS];
 
-/* Debugger doc cac bien nay de kiem chung ca 3 task deu duoc wake dung nhip. */
+/* Debugger đọc các biến này để kiểm chứng cả 3 task đều được wake đúng nhịp. */
 static volatile uint32_t g_uart_counter;
 static volatile uint32_t g_led0_toggle_count;
 static volatile uint32_t g_led1_toggle_count;
@@ -108,7 +108,7 @@ int main(void)
     ntos_status_t status_led0;
     ntos_status_t status_led1;
 
-    /* board_init() da lam ca GPIO LED lan bsp_uart_init() - khong goi lai o day. */
+    /* board_init() đã làm cả GPIO LED lẫn bsp_uart_init() - không gọi lại ở đây. */
     board_init();
     ntos_init();
 

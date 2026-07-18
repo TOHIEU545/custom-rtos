@@ -1,7 +1,7 @@
 /*
  * TEST-ONLY: include header nội bộ kernel để dùng NTOS_ASSERT trực tiếp
  * kiểm tra invariant (local_marker), đúng ngoại lệ cho phép ở
- * NTOS_CODING_CONVENTION.md muc 2.4.
+ * NTOS_CODING_CONVENTION.md mục 2.4.
  */
 #include <ntos/ntos.h>
 #include <board.h>
@@ -17,7 +17,7 @@ static ntos_tcb_t led1_task_tcb;
 static _Alignas(8) uint32_t led0_task_stack[STACK_WORDS];
 static _Alignas(8) uint32_t led1_task_stack[STACK_WORDS];
 
-/* Debugger doc cac bien nay de kiem chung ca 2 task deu chay va yield deu dan. */
+/* Debugger đọc các biến này để kiểm chứng cả 2 task đều chạy và yield đều đặn. */
 static volatile uint32_t led0_counter;
 static volatile uint32_t led1_counter;
 
@@ -65,6 +65,9 @@ int main(void)
     ntos_status_t status_led1;
 
     board_init();
+    /* ntos_init() phải gọi trước khi tạo task bất kỳ nào - nó init
+     * ready_lists[] mà ntos_task_create_static() sẽ đưa task mới vào ngay. */
+    ntos_init();
 
     status_led0 = ntos_task_create_static(&led0_task_tcb, "led0", led0_task, NULL,
         led0_task_stack, STACK_WORDS, 0U);

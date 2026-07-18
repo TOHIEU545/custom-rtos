@@ -1,8 +1,9 @@
 /**
- * @file test_initial_stack.c
+ * @file chang02_initial_stack.c
  * @brief Test đơn giản cho ntos_task_create_static().
  */
 
+#include <ntos/ntos.h>
 #include <ntos/ntos_config_default.h>
 #include <ntos/ntos_task.h>
 
@@ -49,6 +50,10 @@ int main(void)
     test_finished = 0U;
     test_failures = 0U;
     test_failed_line = 0U;
+
+    /* ntos_init() phải gọi trước khi tạo task bất kỳ nào - nó init
+     * ready_lists[] mà ntos_task_create_static() sẽ đưa task mới vào ngay. */
+    ntos_init();
 
     /*
      * test_tcb là biến static nên ban đầu toàn bộ field bằng 0.

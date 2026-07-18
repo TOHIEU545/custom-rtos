@@ -76,6 +76,6 @@ bool board_key_pressed(board_key_t key)
 
     board_key_port_pin(key, &port, &pin);
 
-    /* Phan cung active-low: doc 0 khi nhan, nen dao lai de API tra ve dung nghia "pressed". */
+    /* Phần cứng active-low: đọc 0 khi nhấn, nên đảo lại để API trả về đúng nghĩa "pressed". */
     return !bsp_gpio_read(port, pin);
 }

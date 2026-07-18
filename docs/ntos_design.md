@@ -841,6 +841,34 @@ bool ntos_list_is_empty(const ntos_list_t *list);
 - Index không trỏ vào item đã remove.
 - Owner của task item là TCB.
 
+> **Trạng thái thực tế (Chặng 8 - Bước 8A):** `kernel/ntos_list.c` đã implement
+> đủ 6 hàm trên đúng như thiết kế (Bước 8A, chưa tích hợp scheduler lúc đó).
+> Struct `ntos_list_item_t`/`ntos_list_t` đã **chuyển từ kernel-internal sang
+> public** tại `include/ntos/ntos_list.h` (chỉ struct, không có prototype hàm)
+> — bắt buộc phải làm vậy vì `ntos_tcb_t` (public, `include/ntos/ntos_task.h`)
+> giờ embed trực tiếp `ready_item` (Bước 8B), mà TCB không được phép include
+> header kernel-internal. `kernel/internal/ntos_list_internal.h` giờ chỉ
+> `#include <ntos/ntos_list.h>` rồi khai báo 6 hàm - giống hệt pattern
+> `ntos_task_internal.h` đã dùng cho `ntos_task.h`. 6 hàm thao tác list **vẫn
+> là kernel-internal**, không public hoá logic, chỉ public hoá layout.
+>
+> **Trạng thái thực tế (Chặng 8 - Bước 8B, tích hợp scheduler):**
+> `ntos_tcb_t` có thêm field `ready_item` (`ntos_list_item_t`), init qua
+> `ntos_list_item_init(&tcb->ready_item, tcb)` trong `ntos_task_create_static()`.
+> `ready_lists[NTOS_MAX_PRIORITIES]` (kernel/ntos_kernel.c) đại diện toàn bộ
+> task RUNNABLE (RUNNING + READY) theo từng priority; BLOCKED/UNUSED có
+> `ready_item.container == NULL`. `ntos_scheduler_register_task()` vừa đăng ký
+> `task_table[]` (vẫn giữ, chỉ dùng cho `ntos_tick_handler()` quét wake theo
+> `wake_tick`, Chặng 7) vừa `ntos_list_push_back()` vào `ready_lists[priority]`.
+> `ntos_delay()` gọi `ntos_list_remove(&ready_item)` khi block;
+> `ntos_tick_handler()` gọi `ntos_list_push_back()` lại khi wake.
+> `ntos_scheduler_select_next()` **không còn quét `task_table[]`** - quét
+> `ready_lists[]` từ priority cao xuống thấp (scan tuyến tính, chưa bitmap/CLZ),
+> gọi `ntos_list_next_owner()` để vừa chọn vừa tự round-robin trong đúng
+> priority đó. `current_task_index` (cursor kiểu cũ) đã bị xoá vì không còn
+> dùng. `ready_lists[]` được export qua `kernel_internal.h` (không `static`)
+> chỉ để test kiểm tra invariant `container == &ready_lists[priority]`.
+
 ---
 
 # 15. Semaphore design

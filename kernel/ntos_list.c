@@ -1,6 +1,6 @@
 /**
  * @file ntos_list.c
- * @brief Intrusive doubly-linked circular list dùng sentinel - nền tảng cho ready/wait list (Chặng 8+).
+ * @brief Intrusive doubly-linked circular list dùng sentinel - nền tảng cho ready/wait list.
  */
 #include "ntos_assert_internal.h"
 #include "ntos_list_internal.h"
@@ -11,8 +11,8 @@ void ntos_list_init(ntos_list_t *list)
 {
     NTOS_ASSERT(list != NULL);
 
-    /* Sentinel tro vong ve chinh no - list rong duoc bieu dien bang vong lap
-     * 1-node nay, khong dung NULL o dau ca. */
+    /* Sentinel trỏ vòng về chính nó - list rỗng được biểu diễn bằng vòng lặp
+     * 1-node này, không dùng NULL ở đâu cả. */
     list->end.next = &list->end;
     list->end.previous = &list->end;
     list->end.owner = NULL;
@@ -29,7 +29,7 @@ void ntos_list_item_init(ntos_list_item_t *item, void *owner)
     item->next = NULL;
     item->previous = NULL;
     item->owner = owner;
-    item->container = NULL; /* chua thuoc list nao */
+    item->container = NULL; /* chưa thuộc list nào */
 }
 
 void ntos_list_push_back(ntos_list_t *list, ntos_list_item_t *item)
@@ -38,10 +38,10 @@ void ntos_list_push_back(ntos_list_t *list, ntos_list_item_t *item)
 
     NTOS_ASSERT(list != NULL);
     NTOS_ASSERT(item != NULL);
-    NTOS_ASSERT(item != &list->end);   /* khong duoc chen sentinel nhu item thuong */
-    NTOS_ASSERT(item->container == NULL); /* khong duoc double insert */
+    NTOS_ASSERT(item != &list->end);   /* không được chèn sentinel như item thường */
+    NTOS_ASSERT(item->container == NULL); /* không được chèn trùng (double insert) */
 
-    /* Chen item vao ngay truoc sentinel - tuc la cuoi danh sach cac item thuc. */
+    /* Chèn item vào ngay trước sentinel - tức cuối danh sách các item thực. */
     last = list->end.previous;
 
     item->next = &list->end;
@@ -60,18 +60,18 @@ void ntos_list_remove(ntos_list_item_t *item)
     ntos_list_t *list;
 
     NTOS_ASSERT(item != NULL);
-    NTOS_ASSERT(item->container != NULL); /* khong duoc double remove / remove item chua o trong list */
+    NTOS_ASSERT(item->container != NULL); /* không được gỡ trùng / gỡ item chưa nằm trong list nào */
 
     list = item->container;
-    NTOS_ASSERT(item != &list->end); /* khong duoc remove sentinel */
+    NTOS_ASSERT(item != &list->end); /* không được gỡ sentinel */
 
-    /* Boc item ra khoi vong: hai hang xom tu noi thang voi nhau. */
+    /* Gỡ item khỏi vòng: hai hàng xóm nối thẳng với nhau. */
     item->next->previous = item->previous;
     item->previous->next = item->next;
 
-    /* Neu index dang tro vao item sap bi xoa, lui index ve item truoc do -
-     * lan goi ntos_list_next_owner() ke tiep se tien tu day, roi vao dung
-     * item da thay the vi tri (do buoc tren da noi lai hang xom). */
+    /* Nếu index đang trỏ vào item sắp bị xóa, lùi index về item trước đó -
+     * lần gọi ntos_list_next_owner() kế tiếp sẽ tiến từ đây, rơi đúng vào
+     * item đã thay thế vị trí (do bước trên đã nối lại hàng xóm). */
     if (list->index == item)
     {
         list->index = item->previous;
@@ -91,14 +91,14 @@ void *ntos_list_next_owner(ntos_list_t *list)
     list->index = list->index->next;
     if (list->index == &list->end)
     {
-        /* Vua cham sentinel - bo qua, vong lai item dau tien (hoac o lai
-         * sentinel neu list dang rong). */
+        /* Vừa chạm sentinel - bỏ qua, vòng lại item đầu tiên (hoặc ở lại
+         * sentinel nếu list đang rỗng). */
         list->index = list->index->next;
     }
 
-    /* Khong bao gio duoc tra sentinel nhu item that - neu no vao day nghia la
-     * list dang rong, loi cua caller (phai tu kiem tra ntos_list_is_empty()
-     * truoc khi goi ham nay). */
+    /* Không bao giờ được trả sentinel như item thật - nếu nó vào đây nghĩa là
+     * list đang rỗng, lỗi của caller (phải tự kiểm tra ntos_list_is_empty()
+     * trước khi gọi hàm này). */
     NTOS_ASSERT(list->index != &list->end);
 
     return list->index->owner;

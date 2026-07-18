@@ -11,7 +11,7 @@
 static ntos_tcb_t first_task_tcb;
 static _Alignas(8) uint32_t first_task_stack[STACK_WORDS];
 
-/* Debugger doc cac bien nay sau khi task chay de kiem chung flow. */
+/* Debugger đọc các biến này sau khi task chạy để kiểm chứng flow. */
 static volatile uint32_t g_argument;
 static volatile uint32_t g_psp;
 static volatile uint32_t g_msp;
@@ -54,8 +54,13 @@ static void first_task(void *argument)
 
 int main(void)
 {
-    ntos_status_t status =
-        ntos_task_create_static(&first_task_tcb, "first_task", first_task, TASK_ARGUMENT,
+    ntos_status_t status;
+
+    /* ntos_init() phải gọi trước khi tạo task bất kỳ nào - nó init
+     * ready_lists[] mà ntos_task_create_static() sẽ đưa task mới vào ngay. */
+    ntos_init();
+
+    status = ntos_task_create_static(&first_task_tcb, "first_task", first_task, TASK_ARGUMENT,
                                 first_task_stack, STACK_WORDS, 0U);
 
     if (status != NTOS_OK)

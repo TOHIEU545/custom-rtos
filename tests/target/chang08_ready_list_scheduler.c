@@ -1,36 +1,35 @@
 /*
- * CHANG 8 - Buoc 9: integration test cho ready list + scheduler moi.
+ * Integration test cho ready list + scheduler theo priority.
  *
  * 3 task:
- *   task_a   (priority 3) - CPU-bound, khong bao gio delay.
- *   task_b   (priority 3, bang task_a) - delay dinh ky roi wake.
- *   task_low (priority 1) - CPU-bound, khong bao gio delay; dung de quan sat
- *                           invariant cua task_b tu ben ngoai trong luc task_b
- *                           dang BLOCKED (vi task_low luon duoc chay xen ke).
+ *   task_a   (priority 3) - CPU-bound, không bao giờ delay.
+ *   task_b   (priority 3, bằng task_a) - delay định kỳ rồi wake.
+ *   task_low (priority 1) - CPU-bound, không bao giờ delay; dùng để quan sát
+ *                           invariant của task_b từ bên ngoài trong lúc task_b
+ *                           đang BLOCKED (vì task_low luôn được chạy xen kẽ).
  *
- * Kich ban duoc bao phu:
- *   A. Highest priority: task_low (pri1) khong bao gio chay khi task_a/task_b
- *      (pri3) con READY - kiem qua g_task_low_run_count dung yen giua 2 lan do.
- *   B. Same priority round-robin: task_a va task_b (cung pri3) thay phien nhau
- *      moi khi ca 2 cung READY - kiem qua ca 2 counter deu tang.
- *   C. Mixed priority: chinh la A/B cong lai (2 task pri3 round-robin, 1 task
- *      pri1 bi starve) - khong can kich ban rieng.
- *   D. Blocking: khi task_b dang BLOCKED (delay), ready_item.container cua no
- *      phai == NULL - task_low kiem tra dieu nay tu ben ngoai.
- *   E. Wake: ngay khi task_b tinh day, ready_item.container phai ==
- *      &ready_lists[task_b.priority] (dung ready_lists duoc export qua
- *      kernel_internal.h chi de test).
- *   F. High wake preempt low: do thoi gian tu luc goi delay() den luc tinh,
- *      phai gan dung so tick yeu cau (khong bi tre nhieu vi ket sau task_low).
- *   H. Invariant: owner cua ready_item phai luon tro dung TCB so huu no.
+ * Kịch bản được bao phủ:
+ *   A. Highest priority: task_low (pri1) không bao giờ chạy khi task_a/task_b
+ *      (pri3) còn READY - kiểm qua g_task_low_run_count đứng yên giữa 2 lần đo.
+ *   B. Same priority round-robin: task_a và task_b (cùng pri3) thay phiên nhau
+ *      mỗi khi cả 2 cùng READY - kiểm qua cả 2 counter đều tăng.
+ *   C. Mixed priority: chính là A/B cộng lại (2 task pri3 round-robin, 1 task
+ *      pri1 bị starve) - không cần kịch bản riêng.
+ *   D. Blocking: khi task_b đang BLOCKED (delay), ready_item.container của nó
+ *      phải == NULL - task_low kiểm tra điều này từ bên ngoài.
+ *   E. Wake: ngay khi task_b tỉnh dậy, ready_item.container phải ==
+ *      &ready_lists[task_b.priority] (dùng ready_lists được export qua
+ *      kernel_internal.h chỉ để test).
+ *   F. High wake preempt low: đo thời gian từ lúc gọi delay() đến lúc tỉnh,
+ *      phải gần đúng số tick yêu cầu (không bị trễ nhiều vì kẹt sau task_low).
+ *   H. Invariant: owner của ready_item phải luôn trỏ đúng TCB sở hữu nó.
  *
- * G (idle chon khi tat ca app task deu BLOCKED) KHONG lam lai o day - da co
- * san trong test_idle_task.c/test_delay.c (chay lai nhu regression, xem bao
- * cao Chang 8), vi can ca task_low cung phai delay (mau thuan voi vai tro
- * "luon READY" cua no trong file nay).
+ * G (idle được chọn khi tất cả app task đều BLOCKED) không lặp lại ở đây, vì
+ * cần cả task_low cũng phải delay (mâu thuẫn với vai trò "luôn READY" của nó
+ * trong file này).
  *
- * TEST-ONLY: include thang kernel/internal de doc ready_item.container va
- * mang ready_lists[] (xem NTOS_CODING_CONVENTION.md muc 2.4).
+ * TEST-ONLY: include thẳng kernel/internal để đọc ready_item.container và
+ * mảng ready_lists[] (xem NTOS_CODING_CONVENTION.md mục 2.4).
  */
 #include <ntos/ntos.h>
 #include <board.h>
@@ -54,7 +53,7 @@ static _Alignas(8) uint32_t task_a_stack[STACK_WORDS];
 static _Alignas(8) uint32_t task_b_stack[STACK_WORDS];
 static _Alignas(8) uint32_t task_low_stack[STACK_WORDS];
 
-/* Debugger/UART doc cac bien nay de kiem chung tung kich ban. */
+/* Debugger/UART đọc các biến này để kiểm chứng từng kịch bản. */
 static volatile uint32_t g_task_a_run_count;
 static volatile uint32_t g_task_b_run_count;
 static volatile uint32_t g_task_low_run_count;
@@ -66,7 +65,7 @@ static void uart_write_pass_fail(const char *name, bool ok)
     bsp_uart_write_string(ok ? ": PASS\r\n" : ": FAIL\r\n");
 }
 
-/* Priority cao, cung tier voi task_b - round-robin voi task_b khi ca 2 READY. */
+/* Priority cao, cùng tier với task_b - round-robin với task_b khi cả 2 READY. */
 static void task_a(void *argument)
 {
     (void)argument;
@@ -77,7 +76,7 @@ static void task_a(void *argument)
     }
 }
 
-/* Priority cao, delay dinh ky - kiem tra invariant D/E/F/H tren chinh no. */
+/* Priority cao, delay định kỳ - kiểm tra invariant D/E/F/H trên chính nó. */
 static void task_b(void *argument)
 {
     (void)argument;
@@ -91,15 +90,15 @@ static void task_b(void *argument)
         ntos_tick_t after = ntos_tick_get();
         ntos_tick_t elapsed = after - before;
 
-        /* E: ngay sau khi wake, ready_item phai nam dung ready_lists[priority]. */
+        /* E: ngay sau khi wake, ready_item phải nằm đúng ready_lists[priority]. */
         bool wake_container_correct =
             (task_b_tcb.ready_item.container == &ready_lists[task_b_tcb.priority]);
-        /* H: owner cua ready_item phai luon tro dung TCB so huu no. */
+        /* H: owner của ready_item phải luôn trỏ đúng TCB sở hữu nó. */
         bool owner_correct = (task_b_tcb.ready_item.owner == &task_b_tcb);
-        /* F: wake phai gan dung han, khong bi ket lai phia sau task_low. */
+        /* F: wake phải gần đúng hạn, không bị kẹt lại phía sau task_low. */
         bool woke_promptly = (elapsed >= TASK_B_DELAY_TICKS) &&
                               (elapsed <= (TASK_B_DELAY_TICKS + WAKE_LATENCY_TOLERANCE_TICKS));
-        /* B: task_a cung phai duoc chay (round-robin cung priority). */
+        /* B: task_a cũng phải được chạy (round-robin cùng priority). */
         bool task_a_also_ran = (g_task_a_run_count > 0U);
 
         uart_write_pass_fail("wake_container_matches_ready_list", wake_container_correct);
@@ -110,8 +109,8 @@ static void task_b(void *argument)
     }
 }
 
-/* Priority thap - luon READY, dung lam "nguoi quan sat" invariant cua task_b
- * tu ben ngoai trong luc task_b dang BLOCKED (vi task_low duoc chay xen ke). */
+/* Priority thấp - luôn READY, dùng làm "người quan sát" invariant của task_b
+ * từ bên ngoài trong lúc task_b đang BLOCKED (vì task_low được chạy xen kẽ). */
 static void task_low(void *argument)
 {
     (void)argument;
@@ -122,13 +121,13 @@ static void task_low(void *argument)
 
         if ((g_task_low_run_count % LOW_CHECK_EVERY) == 0U)
         {
-            /* A/C: task_low dang chay tuc la tai thoi diem nay khong co task
-             * pri3 nao dang RUNNING - nhung neu task_a/task_b van con READY,
-             * lan schedule tiep theo phai quay lai uu tien ho, khong phai
-             * task_low chiem lien tuc (kiem tiep o duoi). */
+            /* A/C: task_low đang chạy tức là tại thời điểm này không có task
+             * pri3 nào đang RUNNING - nhưng nếu task_a/task_b vẫn còn READY,
+             * lần schedule tiếp theo phải quay lại ưu tiên họ, không phải
+             * task_low chiếm liên tục (kiểm tiếp ở dưới). */
             if (task_b_tcb.state == NTOS_TASK_BLOCKED)
             {
-                /* D: BLOCKED task tuyet doi khong con nam trong ready list. */
+                /* D: BLOCKED task tuyệt đối không còn nằm trong ready list. */
                 bool blocked_container_null = (task_b_tcb.ready_item.container == NULL);
                 uart_write_pass_fail("blocked_task_container_null", blocked_container_null);
             }
