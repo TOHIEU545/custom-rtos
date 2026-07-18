@@ -7,13 +7,29 @@
 
 #include <stdbool.h>
 #include <stddef.h>
+#include <stdint.h>
+#include <ntos/ntos_list.h>
 #include <ntos/ntos_status.h>
 #include <ntos/ntos_types.h>
 
 /**
  * @brief Hàng đợi message tĩnh dùng chung giữa task và ISR.
+ * @note Type công khai (giống ntos_tcb_t/ntos_semaphore_t) để caller khai báo
+ *       tĩnh trực tiếp, ví dụ `static ntos_queue_t queue;` - không phải opaque.
  */
-typedef struct ntos_queue ntos_queue_t;
+typedef struct ntos_queue
+{
+    uint8_t *storage;              /**< Vùng nhớ tĩnh chứa item, capacity * item_size byte. */
+    size_t item_size;              /**< Kích thước (byte) của một item. */
+    size_t capacity;                /**< Số item tối đa. */
+
+    size_t read_index;              /**< Vị trí (theo item) sẽ đọc kế tiếp. */
+    size_t write_index;             /**< Vị trí (theo item) sẽ ghi kế tiếp. */
+    size_t count;                    /**< Số item hiện có; 0 = empty, == capacity = full. */
+
+    ntos_list_t waiting_receivers;  /**< Task BLOCKED chờ receive() vì queue rỗng. */
+    ntos_list_t waiting_senders;    /**< Task BLOCKED chờ send() vì queue đầy. */
+} ntos_queue_t;
 
 /**
  * @brief Khởi tạo queue với vùng chứa item cấp phát tĩnh.

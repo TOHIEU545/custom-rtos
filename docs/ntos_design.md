@@ -365,9 +365,17 @@ typedef struct ntos_tcb
 } ntos_tcb_t;
 ```
 
-`wake_tick` (xem §13.3, Chặng 7) và `ready_item`/`wait_item` (xem §8.3, §15,
-Chặng 8/9) **chưa có trong TCB hiện tại** — sẽ được thêm vào struct này khi
-tới đúng chặng cần chúng, không thêm sớm.
+> **Trạng thái thực tế (Chặng 9A):** TCB hiện tại (`include/ntos/ntos_task.h`)
+> đã có đủ `wake_tick` (Chặng 7), `ready_item` (Chặng 8) **và `wait_item`**
+> (Chặng 9A) so với bản tối thiểu ở trên. Xem §8.3 để phân biệt vai trò
+> `ready_item` (membership trong `ready_lists[]`) và `wait_item` (membership
+> trong `waiting_tasks` của semaphore) - hai field độc lập, không dùng
+> `ready_item` cho wait list. **Có thêm field `block_reason`** (kiểu
+> `ntos_block_reason_t`: `NTOS_BLOCK_NONE`/`NTOS_BLOCK_DELAY`/
+> `NTOS_BLOCK_SEMAPHORE`/`NTOS_BLOCK_QUEUE_SEND`/`NTOS_BLOCK_QUEUE_RECEIVE`) -
+> thêm sau khi sửa một bug thật phát hiện trên board (xem §13.2): chỉ dựa vào
+> `state == NTOS_TASK_BLOCKED` không đủ để `ntos_tick_handler()` biết có được
+> wake task hay không, vì task BLOCKED vì IPC cũng thoả điều kiện đó.
 
 ## 8.2. Tại sao `stack_pointer` ở đầu?
 
@@ -379,14 +387,21 @@ STR r0, [r1]
 
 nếu `r1` trỏ tới TCB.
 
-## 8.3. Vì sao hai list item? (Chặng 8/9, chưa có trong TCB hiện tại)
+## 8.3. Vì sao hai list item?
 
-Khi ready list và wait list được thêm (Chặng 8 trở đi), TCB sẽ cần hai list item riêng:
+TCB có hai list item độc lập, mỗi field chỉ thuộc tối đa một list tại một thời điểm:
 
-- `ready_item`: membership trong ready list hoặc state-related list.
-- `wait_item`: membership trong semaphore/queue wait list.
+- `ready_item`: membership trong `ready_lists[priority]` (Chặng 8) - mọi task
+  RUNNING/READY nằm ở đây, `container == NULL` khi BLOCKED/UNUSED.
+- `wait_item`: membership trong `waiting_tasks` của semaphore/queue (Chặng 9A
+  trở đi) - chỉ có ý nghĩa khi task BLOCKED vì chờ event, `container == NULL`
+  khi task không chờ semaphore/queue nào.
 
-Trong phiên bản đơn giản, task delay có thể chỉ dùng `state + wake_tick`, chưa cần delayed list.
+Invariant: một task RUNNING/READY có `ready_item.container != NULL` và
+`wait_item.container == NULL`; một task BLOCKED vì semaphore có
+`ready_item.container == NULL` và `wait_item.container != NULL`. Task delay
+(Chặng 7, chờ tick chứ không chờ semaphore) chỉ dùng `state + wake_tick`,
+không đụng tới `wait_item`.
 
 ## 8.4. Task lifetime
 
@@ -714,6 +729,27 @@ Không làm:
 > implement - guard duy nhất hiện có là `ntos_scheduler_running` để SysTick
 > không context-switch trước khi first task start xong.
 
+> **Bug thật phát hiện trên board (Chặng 9A, sửa cùng lúc thêm `block_reason`):**
+> Điều kiện wake ban đầu của Chặng 7 chỉ kiểm `state == NTOS_TASK_BLOCKED`, không
+> phân biệt task đang BLOCKED vì lý do gì. Một task gọi `ntos_sem_take()`/
+> `ntos_queue_send()`/`ntos_queue_receive()` (WAIT_FOREVER) mà **chưa từng gọi
+> `ntos_delay()`** thì `wake_tick` vẫn còn giá trị khởi tạo `0`, và
+> `ntos_tick_reached(now, 0)` = `(int32_t)now >= 0` **gần như luôn đúng** (từ
+> tick 0 tới ~`INT32_MAX`, tức ~24 ngày ở 1 kHz) - nên `ntos_tick_handler()` sẽ
+> "wake giả" task đó ngay SysTick kế tiếp, đẩy `ready_item` vào `ready_lists[]`
+> **mà không hề gỡ `wait_item` khỏi `waiting_tasks`/`waiting_receivers`/
+> `waiting_senders`** (đoạn code này không biết gì về IPC wait list). Kết quả:
+> task vừa nằm trong ready list vừa nằm trong wait list cùng lúc - vi phạm
+> invariant §8.3, lộ ra dưới dạng `NTOS_ASSERT` fail ở `ntos_sem_take()` khi
+> task đó block lần tiếp theo (bắt được thật khi chạy `chang09_semaphore_isr`
+> trên board, xem GDB watch: `ready_item.container` và `wait_item.container`
+> cùng khác `NULL`). **Sửa bằng field mới `block_reason`** (`ntos_block_reason_t`,
+> `include/ntos/ntos_task.h`) thay vì suy luận qua `wait_item.container == NULL`,
+> vì cách suy luận đó sẽ sai ngay khi Chặng 9 thêm finite timeout cho IPC
+> (lúc đó một task vừa có `wait_item` vừa cần `wake_tick` hợp lệ cùng lúc).
+> `ntos_tick_handler()` giờ chỉ wake khi `block_reason == NTOS_BLOCK_DELAY` -
+> xem §13.3 để biết `block_reason` được set/reset ở đâu.
+
 ## 13.3. Delay representation
 
 TCB:
@@ -888,6 +924,12 @@ typedef struct
 } ntos_semaphore_t;
 ```
 
+> **Trạng thái thực tế (Chặng 9A):** `ntos_semaphore_t` (`include/ntos/ntos_sem.h`)
+> là type **công khai đầy đủ**, giống `ntos_tcb_t` - không opaque - để caller
+> khai báo tĩnh trực tiếp (`static ntos_semaphore_t sem;`). Không có header
+> `kernel/internal/ntos_sem_internal.h` riêng vì không module nào khác cần
+> layout nội bộ của semaphore ngoài `kernel/ntos_sem.c`.
+
 ## 15.3. Take
 
 ```text
@@ -910,6 +952,22 @@ leave critical
 request PendSV
 ```
 
+> **Trạng thái thực tế (Chặng 9A):** `ntos_sem_take()` (`kernel/ntos_sem.c`)
+> đúng flow trên, dùng `ntos_port_irq_save()`/`ntos_port_irq_restore()`
+> (PRIMASK) làm critical section, giống `ntos_delay()`. Chỉ hỗ trợ
+> `NTOS_NO_WAIT` và `NTOS_WAIT_FOREVER` (§21) - **mọi giá trị timeout khác 0
+> đều được xử lý như WAIT_FOREVER** (chờ vô hạn), vì Chặng 9A cố ý chưa làm
+> finite timeout; không có nhánh riêng nào khác. Khi block: gọi
+> `ntos_task_block_current(&sem->waiting_tasks, NTOS_BLOCK_SEMAPHORE)`
+> (kernel-internal, `kernel/ntos_task.c`, dùng chung với `ntos_queue.c` - xem
+> §13.2) - hàm này tự assert current đang RUNNING, không phải idle, và
+> `wait_item.container == NULL` trước đó (một `wait_item` chỉ thuộc tối đa một
+> wait list), đồng thời set `block_reason = NTOS_BLOCK_SEMAPHORE` để
+> `ntos_tick_handler()` không wake nhầm. Dùng **direct handoff**: task được `ntos_sem_give()`/
+> `give_from_isr()` wake coi như đã nhận token, `ntos_sem_take()` trả `NTOS_OK`
+> ngay khi task chạy lại mà không trừ `count` lần nữa (không có nguy cơ mất
+> đồng bộ vì `count` chỉ liên quan tới trường hợp KHÔNG có waiter).
+
 ## 15.4. Give
 
 Khuyến nghị direct handoff:
@@ -931,6 +989,20 @@ leave critical
 request PendSV if needed
 ```
 
+> **Trạng thái thực tế (Chặng 9A):** `ntos_sem_give()` (`kernel/ntos_sem.c`)
+> đúng flow trên. "Xác định có cần preemption không" = so sánh priority của
+> waiter vừa wake với `ntos_current_tcb->priority`; chỉ `ntos_port_request_context_switch()`
+> nếu waiter cao hơn - PendSV có request hay không **không đứng trong critical
+> section** (request sau khi đã `ntos_port_irq_restore()`), giống nguyên tắc
+> "không request context switch trước khi state/list update hoàn chỉnh".
+> Không có waiter và `count == max_count` → `NTOS_ERR_RESOURCE_FULL`, không
+> để `count` vượt `max_count`. Wake waiter dùng `ntos_task_make_ready()`
+> (kernel-internal, `kernel/ntos_task.c`) - gỡ `wait_item`, reset
+> `block_reason` về `NTOS_BLOCK_NONE`, set READY, push `ready_item` - dùng
+> chung với `ntos_queue_send()`/`receive()`/`send_from_isr()` (§16.4/§16.5) vì
+> đúng cùng một thao tác chuyển BLOCKED→READY, chỉ khác caller chọn waiter từ
+> wait list nào.
+
 ## 15.5. Wait list ordering
 
 Có hai lựa chọn:
@@ -940,6 +1012,14 @@ Có hai lựa chọn:
 
 Vì project nhỏ, có thể quét để code dễ hiểu.
 
+> **Trạng thái thực tế (Chặng 9A):** Chọn phương án 2 - `sem_select_highest_waiter()`
+> (static, `kernel/ntos_sem.c`) quét tuyến tính `waiting_tasks` từ đầu tới
+> cuối, so sánh priority bằng `>` (nghiêm ngặt, không phải `>=`) nên waiter
+> **xuất hiện trước** trong list luôn thắng nếu cùng priority cao nhất - tức
+> **FIFO giữa các waiter cùng priority**, không cần list sort hay tie-break
+> riêng. `waiting_tasks` không sort theo priority - chỉ đơn thuần push_back
+> theo thứ tự task gọi `ntos_sem_take()` và block.
+
 ## 15.6. ISR give
 
 Khác normal give:
@@ -948,6 +1028,32 @@ Khác normal give:
 - Không gọi scheduler trực tiếp.
 - Trả `higher_priority_task_woken`.
 - Caller yêu cầu yield-from-ISR.
+
+> **Trạng thái thực tế (Chặng 9A):** `ntos_sem_give_from_isr()` (`kernel/ntos_sem.c`)
+> dùng chung logic chọn waiter/direct-handoff với `ntos_sem_give()` (qua
+> helper `sem_wake_waiter()`), khác ở hai điểm: (1) luôn set
+> `*higher_priority_task_woken` (`true` nếu waiter vừa wake có priority cao
+> hơn `ntos_current_tcb`, ngược lại `false`) để caller/test biết được có cần
+> yield không; (2) **tự gọi `ntos_port_request_context_switch()`** khi cờ này
+> `true`, thay vì để caller tự request - vì ISR trong ntos chỉ có một điểm
+> request context switch dùng chung (`ntos_port_request_context_switch()` chỉ
+> set `SCB->ICSR` bit `PENDSVSET`, an toàn gọi từ ISR), không cần một hàm
+> `portYIELD_FROM_ISR()` tách riêng như FreeRTOS. Context switch **thật sự**
+> vẫn chỉ xảy ra trong `PendSV_Handler` sau khi ISR return (tail-chaining) -
+> ISR không tự đổi `ntos_current_tcb`.
+>
+> **Không phụ thuộc thứ tự enable ngắt của BSP/application.** Waiter (nếu có)
+> luôn được đưa vào `ready_lists[]` bất kể scheduler đã chạy hay chưa - đây là
+> việc thuần list, không đụng `ntos_current_tcb`. Phần so priority/preempt chỉ
+> chạy khi `ntos_scheduler_running == true` (cờ kernel-internal đã có sẵn từ
+> Chặng 5, do `SVC_Handler` tự set ngay sau khi gán `ntos_current_tcb` hợp lệ).
+> Nếu ISR give xảy ra trước đó (vd. NVIC_EnableIRQ() của một nguồn ngắt nào đó
+> lỡ chạy trước `ntos_start()`), hàm chỉ đơn giản bỏ qua bước so sánh/preempt
+> (`*higher_priority_task_woken` giữ `false`) thay vì dereference
+> `ntos_current_tcb` lúc nó còn `NULL`. Cách này tái dùng đúng invariant kernel
+> đã tự quản lý (giống `ntos_tick_handler()` dùng `ntos_scheduler_running` để
+> tránh pend PendSV trước khi PSP hợp lệ) thay vì đặt ra một precondition ngầm
+> định buộc BSP/application phải tự sắp thứ tự enable ngắt.
 
 ---
 
@@ -974,6 +1080,12 @@ typedef struct
 } ntos_queue_t;
 ```
 
+> **Trạng thái thực tế (Chặng 9B):** `ntos_queue_t` (`include/ntos/ntos_queue.h`)
+> là type công khai đầy đủ - giống `ntos_tcb_t`/`ntos_semaphore_t`, không
+> opaque - để caller khai báo tĩnh trực tiếp. Đúng layout đề xuất, không thêm
+> field nào khác. Implementation tại `kernel/ntos_queue.c` (thêm vào
+> `kernel/CMakeLists.txt`).
+
 ## 16.3. Memory layout
 
 Item `i`:
@@ -995,6 +1107,20 @@ else:
     blocking -> block sender
 ```
 
+> **Trạng thái thực tế (Chặng 9B):** `ntos_queue_send()` (`kernel/ntos_queue.c`)
+> đúng flow trên, dùng critical section PRIMASK giống `ntos_sem_take()`/
+> `ntos_delay()`. **Blocking send đã implement đầy đủ** (không chỉ non-blocking) -
+> `waiting_senders` hoạt động thật: `NTOS_WAIT_FOREVER` khi full gọi
+> `ntos_task_block_current(&queue->waiting_senders, NTOS_BLOCK_QUEUE_SEND)`
+> (kernel-internal, `kernel/ntos_task.c`, dùng chung với `ntos_sem_take()` -
+> xem §13.2/§15.3) rồi request PendSV sau khi rời critical section, y hệt cách
+> `ntos_queue_receive()` block vào `waiting_receivers`. Đây là quyết định
+> **khác** với semaphore: semaphore không có "blocking give". Khi gửi thành
+> công mà có receiver đang chờ, **không direct-handoff** như semaphore - chỉ
+> wake receiver priority cao nhất bằng `ntos_task_make_ready()` (dùng chung với
+> `ntos_sem_give()`, xem §15.4/§16.7), item vẫn nằm trong buffer chờ receiver
+> tự copy ra.
+
 ## 16.5. Receive
 
 ```text
@@ -1007,6 +1133,13 @@ else:
     no-wait -> QUEUE_EMPTY
     blocking -> block receiver
 ```
+
+> **Trạng thái thực tế (Chặng 9B):** `ntos_queue_receive()` (`kernel/ntos_queue.c`)
+> đúng flow trên. Cả `send()` lẫn `receive()` dùng chung một vòng `for (;;)`
+> bao quanh toàn bộ logic (copy-hoặc-block) - sau khi bị block và được wake,
+> task quay lại **đầu vòng lặp** để tự kiểm tra lại điều kiện (`count > 0`/
+> `count < capacity`) và tự copy, thay vì giả định thành công ngay khi resume.
+> Đây là khác biệt cốt lõi so với semaphore direct-handoff (§15.3) - xem §16.7.
 
 ## 16.6. Simplification policy
 
@@ -1024,9 +1157,47 @@ Không bắt buộc:
 - Variable-size messages.
 - Receive from ISR.
 
+> **Trạng thái thực tế (Chặng 9B):** Đã làm cả hai mục "không bắt buộc":
+> blocking send (thay vì chỉ non-blocking) vì implementation đối xứng và đơn
+> giản, không tốn thêm abstraction nào so với blocking receive đã có. Không
+> làm `receive_from_isr` (đúng scope §19 roadmap - ISR chỉ gửi, không có nhu
+> cầu ISR nhận trong bản học tập này), không queue peek/set, không zero-copy,
+> không variable-size message, không finite timeout (giống semaphore Chặng 9A,
+> chỉ `NTOS_NO_WAIT`/`NTOS_WAIT_FOREVER`).
+
 ## 16.7. Important race
 
 Sau khi một task được wake, task khác có thể chạy trước và thay đổi queue. Do đó blocking operation phải kiểm tra lại điều kiện sau khi resume.
+
+> **Trạng thái thực tế (Chặng 9B):** Đây chính là lý do `ntos_queue_send()`/
+> `ntos_queue_receive()` dùng vòng lặp `for (;;)` bao ngoài thay vì return
+> ngay sau khi được wake (khác semaphore direct-handoff). Ví dụ cụ thể: hai
+> receiver cùng chờ một queue capacity 1, sender gửi 1 item - receiver priority
+> cao hơn được wake trước (`queue_select_highest_waiter()`, cùng thuật toán
+> quét + so sánh `>` nghiêm ngặt như `sem_select_highest_waiter()`, giữ FIFO
+> giữa các waiter cùng priority), nhưng nếu một task thứ ba (hoặc chính sender,
+> nếu nó tiếp tục gửi rồi lại receive) chạy trước và lấy mất item trước khi
+> receiver được wake kịp chạy, thì khi receiver đó thực sự resume, nó phải
+> thấy `count == 0` lần nữa và tự block lại - **không được trả `NTOS_OK` với
+> dữ liệu rác**. `ntos_task_make_ready()` (kernel-internal, `kernel/ntos_task.c`,
+> dùng chung cho cả wake receiver/wake sender ở đây lẫn wake waiter semaphore
+> §15.4) chỉ chuyển task từ wait list sang `ready_lists[priority]` và reset
+> `block_reason`, không hề touch buffer hay copy item - việc copy luôn do
+> chính task được wake tự làm khi nó thực sự chạy lại, ở đầu vòng `for (;;)`.
+
+## 16.8. ISR send
+
+> **Trạng thái thực tế (Chặng 9B):** `ntos_queue_send_from_isr()`
+> (`kernel/ntos_queue.c`) không block (queue full → trả `NTOS_ERR_QUEUE_FULL`
+> ngay, không bao giờ đưa ISR vào `waiting_senders` - blocking send chỉ dành
+> cho task context), dùng chung `queue_select_highest_waiter()`/
+> `ntos_task_make_ready()` với `ntos_queue_send()`. Giống hệt
+> `ntos_sem_give_from_isr()` (Chặng 9A): chỉ so priority/set
+> `*higher_priority_task_woken`/request PendSV khi `ntos_scheduler_running ==
+> true`, không dereference `ntos_current_tcb` dựa trên giả định thứ tự BSP
+> enable ngắt - waiter (nếu có) vẫn được wake vào `ready_lists[]` đúng đắn kể
+> cả khi ISR send xảy ra trước `ntos_start()`. Không có `receive_from_isr`
+> (ngoài scope Chặng 9B, xem §16.6).
 
 ---
 
@@ -1232,6 +1403,12 @@ Semaphore/queue chỉ hỗ trợ:
 
 - Không chờ.
 - Chờ vô hạn.
+
+> **Trạng thái thực tế (Chặng 9A):** `NTOS_NO_WAIT`/`NTOS_WAIT_FOREVER` đã có
+> sẵn tại `include/ntos/ntos_types.h` từ trước (không cần thêm). `ntos_sem_take()`
+> implement đúng Giai đoạn 1 - **không** tích hợp waiter vào `wake_tick`/tick
+> handler, không có race giữa timeout và event vì chưa có timeout hữu hạn nào
+> để race với event cả.
 
 ## Giai đoạn 2 tùy chọn
 

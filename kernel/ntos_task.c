@@ -93,8 +93,10 @@ ntos_status_t ntos_task_create_static(ntos_tcb_t *tcb, const char *name, ntos_ta
     tcb->name = name;
     tcb->priority = priority;
     tcb->state = NTOS_TASK_READY;
-    tcb->wake_tick = 0U; /* Chỉ có ý nghĩa khi state == BLOCKED do ntos_delay(). */
+    tcb->block_reason = NTOS_BLOCK_NONE; /* Chỉ có ý nghĩa khi state == BLOCKED. */
+    tcb->wake_tick = 0U; /* Chỉ có ý nghĩa khi block_reason == NTOS_BLOCK_DELAY. */
     ntos_list_item_init(&tcb->ready_item, tcb);
+    ntos_list_item_init(&tcb->wait_item, tcb);
 
     /* ntos_scheduler_register_task() (kernel/ntos_kernel.c) vừa đăng ký vào
      * task_table[] (còn dùng cho tick handler quét wake) vừa chèn ready_item
@@ -124,6 +126,9 @@ void ntos_delay(ntos_tick_t ticks)
     NTOS_ASSERT(ntos_current_tcb != NULL);
     NTOS_ASSERT(ntos_current_tcb->state == NTOS_TASK_RUNNING); /* chỉ gọi từ task context */
     NTOS_ASSERT(ntos_current_tcb != &ntos_idle_task_tcb);      /* idle không được block */
+    /* Task delay không được đồng thời chờ IPC nào - hai cơ chế block hoàn
+     * toàn tách biệt (xem block_reason, include/ntos/ntos_task.h). */
+    NTOS_ASSERT(ntos_current_tcb->wait_item.container == NULL);
 
     /* Critical section ngắn: chỉ bảo vệ wake_tick + state + ready_item của
      * chính task hiện tại khỏi bị SysTick xen vào giữa chừng (nếu PendSV chạy
@@ -134,6 +139,7 @@ void ntos_delay(ntos_tick_t ticks)
 
     ntos_current_tcb->wake_tick = ntos_tick_get() + ticks;
     ntos_current_tcb->state = NTOS_TASK_BLOCKED;
+    ntos_current_tcb->block_reason = NTOS_BLOCK_DELAY;
     /* BLOCKED task không được nằm trong ready list - ntos_tick_handler()
      * sẽ ntos_list_push_back() lại khi wake đúng hạn. */
     ntos_list_remove(&ntos_current_tcb->ready_item);
@@ -145,4 +151,46 @@ void ntos_delay(ntos_tick_t ticks)
     ntos_port_irq_restore(irq_state);
 
     ntos_port_request_context_switch();
+}
+
+void ntos_task_block_current(ntos_list_t *wait_list, ntos_block_reason_t reason)
+{
+    NTOS_ASSERT(wait_list != NULL);
+    NTOS_ASSERT((reason != NTOS_BLOCK_NONE) && (reason != NTOS_BLOCK_DELAY));
+    NTOS_ASSERT(ntos_current_tcb != NULL);
+    NTOS_ASSERT(ntos_current_tcb->state == NTOS_TASK_RUNNING); /* chỉ gọi từ task context */
+    NTOS_ASSERT(ntos_current_tcb != &ntos_idle_task_tcb);      /* idle không được block */
+    NTOS_ASSERT(ntos_current_tcb->wait_item.container == NULL); /* một wait_item chỉ ở tối đa một wait list */
+
+    /* Caller (ntos_sem_take()/ntos_queue_send()/ntos_queue_receive()) tự chịu
+     * trách nhiệm giữ critical section quanh lời gọi này và tự
+     * ntos_port_request_context_switch() sau khi rời critical section - hàm
+     * này không tự request PendSV, giống quy ước ntos_delay(). */
+    ntos_list_remove(&ntos_current_tcb->ready_item);
+    ntos_current_tcb->state = NTOS_TASK_BLOCKED;
+    ntos_current_tcb->block_reason = reason;
+    ntos_list_push_back(wait_list, &ntos_current_tcb->wait_item);
+
+    NTOS_ASSERT(ntos_current_tcb->ready_item.container == NULL);
+    NTOS_ASSERT(ntos_current_tcb->wait_item.container == wait_list);
+}
+
+void ntos_task_make_ready(ntos_tcb_t *task)
+{
+    NTOS_ASSERT(task != NULL);
+    NTOS_ASSERT(task->state == NTOS_TASK_BLOCKED);
+    NTOS_ASSERT((task->block_reason != NTOS_BLOCK_NONE) && (task->block_reason != NTOS_BLOCK_DELAY));
+    NTOS_ASSERT(task->ready_item.container == NULL);
+    NTOS_ASSERT(task->wait_item.container != NULL);
+
+    /* Dùng chung cho cả wake receiver/sender (queue) lẫn wake waiter
+     * (semaphore) - chỉ đưa task READY, không copy/handoff dữ liệu gì (đó là
+     * việc riêng của từng module gọi nó). */
+    ntos_list_remove(&task->wait_item);
+    task->block_reason = NTOS_BLOCK_NONE;
+    task->state = NTOS_TASK_READY;
+    ntos_list_push_back(&ready_lists[task->priority], &task->ready_item);
+
+    NTOS_ASSERT(task->wait_item.container == NULL);
+    NTOS_ASSERT(task->ready_item.container == &ready_lists[task->priority]);
 }

@@ -20,6 +20,9 @@ void bsp_rcc_enable(bsp_rcc_periph_t periph)
     case BSP_RCC_PERIPH_USART1:
         RCC->APB2ENR |= RCC_APB2ENR_USART1EN;
         break;
+    case BSP_RCC_PERIPH_AFIO:
+        RCC->APB2ENR |= RCC_APB2ENR_AFIOEN;
+        break;
     default:
         break;
     }

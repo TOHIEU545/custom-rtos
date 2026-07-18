@@ -16,6 +16,7 @@ typedef enum
     BSP_RCC_PERIPH_GPIOC,
     BSP_RCC_PERIPH_GPIOD,
     BSP_RCC_PERIPH_USART1,
+    BSP_RCC_PERIPH_AFIO,
 } bsp_rcc_periph_t;
 
 /**

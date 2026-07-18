@@ -7,13 +7,21 @@
 
 #include <stdbool.h>
 #include <stdint.h>
+#include <ntos/ntos_list.h>
 #include <ntos/ntos_status.h>
 #include <ntos/ntos_types.h>
 
 /**
  * @brief Semaphore đếm dùng chung giữa task và ISR.
+ * @note Type công khai (giống ntos_tcb_t) để caller khai báo tĩnh trực tiếp,
+ *       ví dụ `static ntos_semaphore_t sem;` - không phải opaque handle.
  */
-typedef struct ntos_semaphore ntos_semaphore_t;
+typedef struct ntos_semaphore
+{
+    uint32_t count;              /**< Số token hiện có; 0 nghĩa là chưa có token nào để take(). */
+    uint32_t max_count;          /**< Giới hạn trên của count - give() khi count == max_count trả NTOS_ERR_RESOURCE_FULL. */
+    ntos_list_t waiting_tasks;   /**< Task đang BLOCKED chờ semaphore này, nối qua tcb->wait_item. */
+} ntos_semaphore_t;
 
 /**
  * @brief Khởi tạo semaphore với số đếm ban đầu và tối đa.
@@ -43,6 +51,11 @@ ntos_status_t ntos_sem_give(ntos_semaphore_t *sem);
  * @param sem Semaphore cần trả.
  * @param higher_priority_task_woken Set true nếu có task priority cao hơn được đánh thức.
  * @return NTOS_OK nếu thành công, NTOS_ERR_RESOURCE_FULL nếu đã đạt max_count.
+ * @note An toàn để gọi kể cả trước khi ntos_start() chạy xong (vd. nguồn ngắt
+ *       được enable sớm hơn dự kiến) - waiter (nếu có) vẫn được đưa đúng vào
+ *       ready list, chỉ riêng phần so sánh priority/preempt bị bỏ qua
+ *       (`*higher_priority_task_woken` giữ false) cho tới khi scheduler thật
+ *       sự chạy, vì chưa có "current task" nào để so sánh hay preempt.
  */
 ntos_status_t ntos_sem_give_from_isr(ntos_semaphore_t *sem, bool *higher_priority_task_woken);
 #endif

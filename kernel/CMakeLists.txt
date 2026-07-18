@@ -1,5 +1,5 @@
 # Portable ntos kernel code. Architecture-specific code lives under port/.
-add_library(ntos_kernel STATIC ntos_kernel.c ntos_task.c ntos_list.c ntos_assert.c)
+add_library(ntos_kernel STATIC ntos_kernel.c ntos_task.c ntos_list.c ntos_sem.c ntos_queue.c ntos_assert.c)
 
 target_include_directories(ntos_kernel
     PUBLIC ${CMAKE_SOURCE_DIR}/include

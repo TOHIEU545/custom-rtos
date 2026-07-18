@@ -108,14 +108,27 @@ void ntos_tick_handler(void)
 
     /* Wake delayed task: quét task_table O(n) - task_count nhỏ (<= NTOS_MAX_TASKS)
      * nên không cần delayed list riêng. Task chỉ được wake đúng 1 lần vì lần
-     * tick sau state không còn BLOCKED. Wake xong phải chèn lại ready_item vào
-     * đúng ready_lists[priority] (lúc BLOCKED nó đã bị ntos_list_remove() trong
-     * ntos_delay()). */
+     * tick sau block_reason không còn NTOS_BLOCK_DELAY. Wake xong phải chèn
+     * lại ready_item vào đúng ready_lists[priority] (lúc BLOCKED nó đã bị
+     * ntos_list_remove() trong ntos_delay()).
+     *
+     * QUAN TRỌNG: điều kiện `block_reason == NTOS_BLOCK_DELAY` là bắt buộc,
+     * không được rút gọn về chỉ `state == BLOCKED` - một task BLOCKED vì
+     * ntos_sem_take()/ntos_queue_receive()/send() có wake_tick CÒN NGUYÊN giá
+     * trị mặc định 0 (chưa từng ntos_delay()), và ntos_tick_reached(now, 0)
+     * gần như luôn đúng (xem ntos_tick_reached() bên dưới) - nếu không lọc
+     * block_reason, tick_handler sẽ "wake giả" task đang chờ IPC ngay tick kế
+     * tiếp, đẩy ready_item vào ready_lists[] trong khi wait_item vẫn còn
+     * nguyên trong waiting_tasks/waiting_receivers/waiting_senders - vi phạm
+     * invariant hai-list (đã từng gây assert fail thật trên board, xem lịch
+     * sử Chặng 9A). */
     for (i = 0U; i < task_count; ++i)
     {
         if ((task_table[i]->state == NTOS_TASK_BLOCKED) &&
+            (task_table[i]->block_reason == NTOS_BLOCK_DELAY) &&
             ntos_tick_reached(ntos_tick_count, task_table[i]->wake_tick))
         {
+            task_table[i]->block_reason = NTOS_BLOCK_NONE;
             task_table[i]->state = NTOS_TASK_READY;
             ntos_list_push_back(&ready_lists[task_table[i]->priority], &task_table[i]->ready_item);
 
