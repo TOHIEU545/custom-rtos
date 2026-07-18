@@ -8,6 +8,7 @@
 
 #include <stdbool.h>
 
+#include "ntos_list_internal.h"
 #include "ntos_task_internal.h"
 
 /** @brief TCB của task đang chạy hiện tại; NULL trước khi ntos_start() gán. Định nghĩa tại kernel/ntos_kernel.c. */
@@ -26,6 +27,13 @@ extern volatile bool ntos_scheduler_running;
  *       Định nghĩa tại kernel/ntos_kernel.c.
  */
 extern ntos_tcb_t ntos_idle_task_tcb;
+
+/**
+ * @brief Ready list theo priority (Chặng 8) - ready_lists[p] chứa mọi task RUNNING/READY priority p.
+ * @note Export chỉ để test kiểm tra invariant `tcb->ready_item.container == &ready_lists[priority]`.
+ *       Định nghĩa (kích thước NTOS_MAX_PRIORITIES) tại kernel/ntos_kernel.c.
+ */
+extern ntos_list_t ready_lists[];
 
 /** @brief Đăng ký tcb vào task_table của scheduler. Gọi từ ntos_task_create_static(). */
 void ntos_scheduler_register_task(ntos_tcb_t *tcb);

@@ -1,44 +1,33 @@
-ntos_add_firmware(test_initial_stack
-    MAIN ${CMAKE_CURRENT_SOURCE_DIR}/test_initial_stack.c
+ntos_add_firmware(chang02_initial_stack
+    MAIN ${CMAKE_CURRENT_SOURCE_DIR}/chang02_initial_stack.c
 )
 
-ntos_add_firmware(test_first_task
-    MAIN ${CMAKE_CURRENT_SOURCE_DIR}/test_first_task.c
+ntos_add_firmware(chang03_first_task
+    MAIN ${CMAKE_CURRENT_SOURCE_DIR}/chang03_first_task.c
 )
 
-ntos_add_firmware(test_cooperative_scheduler
-    MAIN ${CMAKE_CURRENT_SOURCE_DIR}/test_cooperative_scheduler.c
+ntos_add_firmware(chang04_cooperative_scheduler
+    MAIN ${CMAKE_CURRENT_SOURCE_DIR}/chang04_cooperative_scheduler.c
 )
 # TEST-ONLY: dung NTOS_ASSERT truc tiep (xem NTOS_CODING_CONVENTION.md muc 2.4).
-target_include_directories(test_cooperative_scheduler PRIVATE ${CMAKE_SOURCE_DIR}/kernel/internal)
+target_include_directories(chang04_cooperative_scheduler PRIVATE ${CMAKE_SOURCE_DIR}/kernel/internal)
 
-ntos_add_firmware(test_register_preservation
-    MAIN ${CMAKE_CURRENT_SOURCE_DIR}/test_register_preservation.c
-    SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/test_register_preservation_asm.S
-)
-# TEST-ONLY: dung NTOS_ASSERT truc tiep (xem NTOS_CODING_CONVENTION.md muc 2.4).
-target_include_directories(test_register_preservation PRIVATE ${CMAKE_SOURCE_DIR}/kernel/internal)
-
-ntos_add_firmware(test_preemption
-    MAIN ${CMAKE_CURRENT_SOURCE_DIR}/test_preemption.c
+ntos_add_firmware(chang05_preemption
+    MAIN ${CMAKE_CURRENT_SOURCE_DIR}/chang05_preemption.c
 )
 
-ntos_add_firmware(test_task_states
-    MAIN ${CMAKE_CURRENT_SOURCE_DIR}/test_task_states.c
-)
-# TEST-ONLY: dung ntos_current_tcb va dat state truc tiep (xem NTOS_CODING_CONVENTION.md muc 2.4).
-target_include_directories(test_task_states PRIVATE ${CMAKE_SOURCE_DIR}/kernel/internal)
-
-ntos_add_firmware(test_priority_scheduler
-    MAIN ${CMAKE_CURRENT_SOURCE_DIR}/test_priority_scheduler.c
+ntos_add_firmware(chang06_priority_scheduler
+    MAIN ${CMAKE_CURRENT_SOURCE_DIR}/chang06_priority_scheduler.c
 )
 
-ntos_add_firmware(test_idle_task
-    MAIN ${CMAKE_CURRENT_SOURCE_DIR}/test_idle_task.c
+ntos_add_firmware(chang07_delay
+    MAIN ${CMAKE_CURRENT_SOURCE_DIR}/chang07_delay.c
 )
 
-ntos_add_firmware(test_delay
-    MAIN ${CMAKE_CURRENT_SOURCE_DIR}/test_delay.c
+ntos_add_firmware(chang08_ready_list_scheduler
+    MAIN ${CMAKE_CURRENT_SOURCE_DIR}/chang08_ready_list_scheduler.c
 )
+# TEST-ONLY: doc ready_item.container va ready_lists[] truc tiep (xem NTOS_CODING_CONVENTION.md muc 2.4).
+target_include_directories(chang08_ready_list_scheduler PRIVATE ${CMAKE_SOURCE_DIR}/kernel/internal)
 
 # Cac target test con lai se duoc them khi chang tuong ung bat dau.

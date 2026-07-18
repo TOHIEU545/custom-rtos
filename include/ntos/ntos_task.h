@@ -5,6 +5,7 @@
  * @brief API công khai quản lý task: TCB, tạo task tĩnh, yield, delay.
  */
 
+#include <ntos/ntos_list.h>
 #include <ntos/ntos_status.h>
 #include <ntos/ntos_types.h>
 #include <stddef.h>
@@ -37,6 +38,7 @@ typedef struct ntos_tcb
     ntos_priority_t priority; /**< Mức ưu tiên, số càng lớn càng ưu tiên. */
     ntos_task_state_t state;  /**< Trạng thái hiện tại của task. */
     ntos_tick_t wake_tick;    /**< Chỉ có ý nghĩa khi state == NTOS_TASK_BLOCKED do ntos_delay() (Chặng 7). */
+    ntos_list_item_t ready_item; /**< Node trong ready_lists[priority] (Chặng 8); container == NULL khi BLOCKED/UNUSED. */
 } ntos_tcb_t;
 
 /**

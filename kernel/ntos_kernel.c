@@ -4,6 +4,7 @@
 
 #include "ntos_assert_internal.h"
 #include "ntos_kernel_internal.h"
+#include "ntos_list_internal.h"
 
 #include "ntos_port.h"
 #include <stddef.h>
@@ -15,7 +16,13 @@ static volatile ntos_tick_t ntos_tick_count = 0U;
 
 static ntos_tcb_t *task_table[NTOS_MAX_TASKS];
 static size_t task_count = 0U;
-static size_t current_task_index = 0U;
+
+/* Ready list theo tung priority (Chang 8) - dai dien toan bo task RUNNABLE
+ * (RUNNING + READY). BLOCKED/UNUSED khong duoc nam trong day. index cua tung
+ * list tu lam round-robin cursor rieng cho priority do (thay cho
+ * current_task_index kieu cu quet task_table). Khong con "static" vi export
+ * qua kernel_internal.h chi de test kiem tra invariant container. */
+ntos_list_t ready_lists[NTOS_MAX_PRIORITIES];
 
 ntos_tcb_t ntos_idle_task_tcb;
 static _Alignas(8) uint32_t ntos_idle_task_stack[NTOS_IDLE_STACK_WORDS];
@@ -35,7 +42,17 @@ static void ntos_idle_task(void *argument)
 
 void ntos_init(void)
 {
-    ntos_status_t status = ntos_task_create_static(&ntos_idle_task_tcb, "idle", ntos_idle_task,
+    size_t p;
+    ntos_status_t status;
+
+    /* Phai init xong het ready_lists[] TRUOC khi tao task dau tien (ke ca idle) -
+     * ntos_scheduler_register_task() se ntos_list_push_back() vao day ngay. */
+    for (p = 0U; p < NTOS_MAX_PRIORITIES; ++p)
+    {
+        ntos_list_init(&ready_lists[p]);
+    }
+
+    status = ntos_task_create_static(&ntos_idle_task_tcb, "idle", ntos_idle_task,
         NULL, ntos_idle_task_stack, NTOS_IDLE_STACK_WORDS, 0U);
 
     NTOS_ASSERT(status == NTOS_OK);
@@ -43,8 +60,6 @@ void ntos_init(void)
 
 void ntos_start(ntos_tcb_t *first_task_tcb)
 {
-    size_t index;
-
     NTOS_ASSERT(ntos_current_tcb == NULL);
     NTOS_ASSERT(first_task_tcb != NULL);
     NTOS_ASSERT(first_task_tcb->state == NTOS_TASK_READY);
@@ -52,17 +67,11 @@ void ntos_start(ntos_tcb_t *first_task_tcb)
     NTOS_ASSERT(first_task_tcb->stack_pointer >= first_task_tcb->stack_low);
     NTOS_ASSERT(first_task_tcb->stack_pointer < first_task_tcb->stack_high);
     NTOS_ASSERT(((uintptr_t)first_task_tcb->stack_pointer & 0x7U) == 0U);
+    /* Chang 8: thay vi do task_table[] tim index, kiem tra thang first_task
+     * dang nam dung ready_lists[priority] cua no - dung invariant moi
+     * (RUNNABLE task phai co ready_item.container tro dung list). */
+    NTOS_ASSERT(first_task_tcb->ready_item.container == &ready_lists[first_task_tcb->priority]);
 
-    for (index = 0U; index < task_count; ++index)
-    {
-        if (task_table[index] == first_task_tcb)
-        {
-            break;
-        }
-    }
-    NTOS_ASSERT(index < task_count); /* first_task phai da duoc dang ky qua ntos_task_create_static() */
-
-    current_task_index = index;
     first_task_tcb->state = NTOS_TASK_RUNNING;
     ntos_current_tcb = first_task_tcb;
 
@@ -97,13 +106,21 @@ void ntos_tick_handler(void)
 
     /* Wake delayed task (Chang 7): quet task_table O(n) - task_count nho
      * (<= NTOS_MAX_TASKS) nen khong can delayed list rieng o giai doan nay.
-     * Task chi duoc wake dung 1 lan vi lan tick sau state khong con BLOCKED. */
+     * Task chi duoc wake dung 1 lan vi lan tick sau state khong con BLOCKED.
+     * Chang 8: wake xong phai chen lai ready_item vao dung ready_lists[priority]
+     * (luc BLOCKED no da bi ntos_list_remove() trong ntos_delay()). */
     for (i = 0U; i < task_count; ++i)
     {
         if ((task_table[i]->state == NTOS_TASK_BLOCKED) &&
             ntos_tick_reached(ntos_tick_count, task_table[i]->wake_tick))
         {
             task_table[i]->state = NTOS_TASK_READY;
+            ntos_list_push_back(&ready_lists[task_table[i]->priority], &task_table[i]->ready_item);
+
+            /* Debug check (muc 11): wake xong task phai nam dung ready list
+             * theo priority cua no - bat loi neu push_back sai cho hoac priority
+             * bi doi ma khong cap nhat ready list tuong ung. */
+            NTOS_ASSERT(task_table[i]->ready_item.container == &ready_lists[task_table[i]->priority]);
         }
     }
 
@@ -123,64 +140,58 @@ void ntos_scheduler_register_task(ntos_tcb_t *tcb)
     NTOS_ASSERT(tcb != NULL);
     NTOS_ASSERT(task_count < NTOS_MAX_TASKS);
 
+    /* task_table[] van giu de ntos_tick_handler() quet wake theo wake_tick
+     * (Chang 7, chua toi uu thanh delayed list rieng o Chang 8). */
     task_table[task_count] = tcb;
     task_count++;
+
+    /* Task moi tao luon READY - dua vao dung ready_lists[priority] (Chang 8). */
+    ntos_list_push_back(&ready_lists[tcb->priority], &tcb->ready_item);
 }
 
 void ntos_scheduler_select_next(void)
 {
-    size_t next_index;
-    size_t i;
-    ntos_priority_t highest_ready_priority;
-    bool found_ready;
+    int p;
+    ntos_tcb_t *selected;
 
     NTOS_ASSERT(ntos_current_tcb != NULL);
-    NTOS_ASSERT(task_count > 0U);
 
+    /* RUNNING -> READY nhung KHONG remove khoi ready list: invariant Chang 8
+     * la ready_lists[] dai dien RUNNING + READY gop lai, chi BLOCKED/UNUSED
+     * moi khong nam trong day. */
     if (ntos_current_tcb->state == NTOS_TASK_RUNNING)
     {
         ntos_current_tcb->state = NTOS_TASK_READY;
     }
 
-    /* Pass 1 (O(n)): tim priority cao nhat trong so cac task dang READY. Task
-     * hien tai da duoc demote ve READY o tren nen khong can xet rieng RUNNING. */
-    highest_ready_priority = 0U;
-    found_ready = false;
-    for (i = 0U; i < task_count; ++i)
-    {
-        if (task_table[i]->state == NTOS_TASK_READY)
-        {
-            if (!found_ready || (task_table[i]->priority > highest_ready_priority))
-            {
-                highest_ready_priority = task_table[i]->priority;
-            }
-            found_ready = true;
-        }
-    }
-    /* Phai luon co it nhat 1 task READY (chinh current vua duoc demote o tren). */
-    NTOS_ASSERT(found_ready);
+    /* Debug check (muc 11): idle luon runnable, khong bao gio block, nen
+     * ready_lists[0] tuyet doi khong duoc rong - neu rong nghia la idle da
+     * bi loai khoi ready list mot cach bat thuong (bug nghiem trong). */
+    NTOS_ASSERT(!ntos_list_is_empty(&ready_lists[0]));
 
-    /* Pass 2 (O(n)): round-robin tu current_task_index, CHI chon task READY co
-     * dung highest_ready_priority - task priority thap hon du dang READY van bi
-     * bo qua (starvation hop le cua fixed-priority scheduler, khong phai bug). */
-    next_index = current_task_index;
-    for (i = 0U; i < task_count; ++i)
+    /* Quet ready_lists[] tu priority cao nhat xuong thap nhat - NTOS_MAX_PRIORITIES
+     * chi la 8 nen chua can bitmap/CLZ (Chang 8 khong lam). Khong con dung
+     * task_table[] de chon task nua - chi con dung cho tick handler wake (Chang 7). */
+    selected = NULL;
+    for (p = (int)NTOS_MAX_PRIORITIES - 1; p >= 0; --p)
     {
-        next_index = (next_index + 1U) % task_count;
-        if ((task_table[next_index]->state == NTOS_TASK_READY) &&
-            (task_table[next_index]->priority == highest_ready_priority))
+        if (!ntos_list_is_empty(&ready_lists[p]))
         {
+            /* ntos_list_next_owner() tu tien round-robin cursor cua rieng
+             * list nay - chinh la round-robin giua cac task cung priority. */
+            selected = (ntos_tcb_t *)ntos_list_next_owner(&ready_lists[p]);
             break;
         }
     }
 
-    /* Invariant Chang 6: scheduler tuyet doi khong duoc chon task UNUSED/BLOCKED,
-     * va phai la task co priority cao nhat dang READY. Neu assert nay no nghia la
-     * khong tim thay task nao khop - loi logic kernel that su. */
-    NTOS_ASSERT(task_table[next_index]->state == NTOS_TASK_READY);
-    NTOS_ASSERT(task_table[next_index]->priority == highest_ready_priority);
+    /* Idle luon nam trong ready_lists[0] va khong bao gio BLOCKED nen
+     * ready_lists[] khong bao gio rong het - phai luon tim duoc 1 task. Tai
+     * thoi diem nay khong con task nao RUNNING nua (vua demote o tren), nen
+     * moi task trong ready_lists[] deu phai la READY. */
+    NTOS_ASSERT(selected != NULL);
+    NTOS_ASSERT(selected->state == NTOS_TASK_READY);
+    NTOS_ASSERT(selected->ready_item.container == &ready_lists[selected->priority]);
 
-    current_task_index = next_index;
-    ntos_current_tcb = task_table[current_task_index];
+    ntos_current_tcb = selected;
     ntos_current_tcb->state = NTOS_TASK_RUNNING;
 }

@@ -4,6 +4,7 @@
 
 #include "ntos_assert_internal.h"
 #include "ntos_kernel_internal.h"
+#include "ntos_list_internal.h"
 #include "ntos_port.h"
 
 #include <stdint.h>
@@ -89,7 +90,11 @@ ntos_status_t ntos_task_create_static(ntos_tcb_t *tcb, const char *name, ntos_ta
     tcb->priority = priority;
     tcb->state = NTOS_TASK_READY;
     tcb->wake_tick = 0U; /* Chi co y nghia khi state == BLOCKED do ntos_delay() (Chang 7). */
+    ntos_list_item_init(&tcb->ready_item, tcb);
 
+    /* ntos_scheduler_register_task() (kernel/ntos_kernel.c) vua dang ky vao
+     * task_table[] (con dung cho tick handler quet wake, Chang 7) vua chen
+     * ready_item vao ready_lists[priority] (Chang 8). */
     ntos_scheduler_register_task(tcb);
 
     return NTOS_OK;
@@ -116,14 +121,22 @@ void ntos_delay(ntos_tick_t ticks)
     NTOS_ASSERT(ntos_current_tcb->state == NTOS_TASK_RUNNING); /* chi goi tu task context */
     NTOS_ASSERT(ntos_current_tcb != &ntos_idle_task_tcb);      /* idle khong duoc block */
 
-    /* Critical section ngan: chi bao ve wake_tick + state cua chinh task hien
-     * tai khoi bi SysTick xen vao giua chung (neu PendSV chay truoc khi state
-     * kip chuyen BLOCKED, scheduler se demote nham ve READY thay vi giu BLOCKED -
-     * mat delay). Khong giu IRQ tat qua luc request context switch. */
+    /* Critical section ngan: chi bao ve wake_tick + state + ready_item cua
+     * chinh task hien tai khoi bi SysTick xen vao giua chung (neu PendSV chay
+     * truoc khi state kip chuyen BLOCKED, scheduler se demote nham ve READY
+     * thay vi giu BLOCKED - mat delay). Khong giu IRQ tat qua luc request
+     * context switch. */
     irq_state = ntos_port_irq_save();
 
     ntos_current_tcb->wake_tick = ntos_tick_get() + ticks;
     ntos_current_tcb->state = NTOS_TASK_BLOCKED;
+    /* BLOCKED task khong duoc nam trong ready list (Chang 8) - ntos_tick_handler()
+     * se ntos_list_push_back() lai khi wake dung han. */
+    ntos_list_remove(&ntos_current_tcb->ready_item);
+
+    /* Debug check (muc 11): BLOCKED task tuyet doi khong duoc con container -
+     * neu con nghia la ntos_list_remove() that bai hoac bi goi sai thu tu. */
+    NTOS_ASSERT(ntos_current_tcb->ready_item.container == NULL);
 
     ntos_port_irq_restore(irq_state);
 
