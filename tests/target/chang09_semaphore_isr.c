@@ -1,19 +1,14 @@
 /*
- * Integration test cho Chặng 9A - semaphore give TỪ ISR (KEY2/EXTI1). Xem
- * chang09_semaphore.c cho phần core (task context, không ISR).
+ * Test semaphore wake-up from interrupt context.
  *
- * Kịch bản:
- *   task_high (priority cao) block WAIT_FOREVER trên sem ngay từ đầu (count
- *   khởi tạo == 0).
- *   task_low (priority thấp) busy-loop CPU-bound liên tục - đóng vai "đang
- *   chạy" để chứng minh preemption thật khi nút được bấm.
- *   Nút KEY2 (PC1, EXTI1 - vector riêng, không dùng chung như EXTI9_5/15_10)
- *   sinh ngắt -> EXTI1_IRQHandler chỉ clear pending rồi gọi
- *   ntos_sem_give_from_isr() - không yield, không tự context switch, ISR
- *   ngắn đúng convention.
- *   ntos_sem_give_from_isr() tự set higher_priority_task_woken và tự request
- *   PendSV nếu cần - task_high phải preempt task_low gần như ngay lập tức
- *   sau khi ISR return.
+ * A high-priority task blocks on the semaphore while a lower-priority
+ * CPU-bound task runs. The interrupt gives the semaphore and wakes the high
+ * task, allowing the test to verify deferred preemption through PendSV.
+ *
+ * task_low chạy CPU-bound thay vì idle để chứng minh điều mạnh hơn: nút bấm
+ * phải giành lại CPU từ một task đang thực sự RUNNING, không chỉ đánh thức
+ * task_high lúc CPU đang rảnh (điều đó không chứng minh được cơ chế preempt
+ * hoạt động).
  */
 #include <ntos/ntos.h>
 #include <board.h>
@@ -82,24 +77,32 @@ static void task_high(void *argument)
     }
 }
 
-/* CPU-bound cố ý không delay - đóng vai "đang chạy" để chứng minh task_high
- * (priority cao hơn) preempt được nó ngay khi ISR give bắn ra. */
 static void task_low(void *argument)
 {
     (void)argument;
 
-    /* Enable NVIC EXTI1 ngay khi task này bắt đầu chạy - không bắt buộc về an
-     * toàn (ntos_sem_give_from_isr() an toàn kể cả trước khi scheduler chạy,
-     * xem @note của nó trong ntos_sem.h), chỉ là good practice: tránh một lần
-     * bấm sớm bị "nuốt" thành count tăng lúc chưa ai chờ. */
+    /* Bật NVIC EXTI1 ngay khi task này bắt đầu chạy, không phải trong
+     * main()/trước ntos_start(): nếu nút được bấm sớm hơn - trước khi có bất
+     * kỳ task nào chờ - ntos_sem_give_from_isr() sẽ chỉ tăng count thay vì
+     * đánh thức ai, và lần bấm đó coi như bị bỏ lỡ khỏi kịch bản test thay vì
+     * được quan sát như một sự kiện preempt thật. */
     bsp_exti_config(BOARD_KEY2_PORT, BOARD_KEY2_PIN, BSP_EXTI_TRIGGER_FALLING);
 
+    /* Không delay: task này phải luôn ở trạng thái RUNNING để việc bấm nút
+     * chứng minh được task_high thật sự preempt một task đang chạy, không
+     * phải chỉ đánh thức nó lúc CPU rảnh. */
     for (;;)
     {
         g_low_run_count++;
     }
 }
 
+/* Dùng ntos_sem_give_from_isr() thay vì ntos_sem_give(): ISR không có TCB
+ * riêng để scheduler đưa vào ready/wait list, và không được phép tự chọn
+ * task kế tiếp hay tự đổi ngữ cảnh - nó chỉ có thể chuyển waiter sang READY
+ * rồi yêu cầu PendSV xử lý phần switch thật sau khi ISR kết thúc. ISR chỉ
+ * làm đúng hai việc (clear pending, give) rồi return ngay - không gọi thêm gì
+ * khác để giữ thời gian ở mức ưu tiên ngắt tối thiểu. */
 void EXTI1_IRQHandler(void)
 {
     bool higher_priority_task_woken = false;
@@ -108,7 +111,6 @@ void EXTI1_IRQHandler(void)
 
     (void)ntos_sem_give_from_isr(&sem, &higher_priority_task_woken);
     g_higher_priority_task_woken = higher_priority_task_woken;
-    /* ntos_sem_give_from_isr() đã tự request PendSV nếu cần - không làm gì thêm. */
 }
 
 int main(void)

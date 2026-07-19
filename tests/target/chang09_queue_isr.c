@@ -1,22 +1,17 @@
 /*
- * Integration test cho Chặng 9B - queue send TỪ ISR (KEY1/EXTI15_10). Xem
- * chang09_queue.c cho phần core (task context, không ISR).
+ * Test queue send from interrupt context.
  *
- * Kịch bản:
- *   task_parser (priority cao) block WAIT_FOREVER trên event_queue ngay từ
- *   đầu (queue rỗng).
- *   task_low (priority thấp) busy-loop CPU-bound liên tục - đóng vai "đang
- *   chạy" để chứng minh preemption thật khi nút được bấm.
- *   Nút KEY1 (PC13, EXTI15_10 - vector DÙNG CHUNG line 10-15, khác KEY2/EXTI1
- *   dùng ở chang09_semaphore_isr.c) sinh ngắt -> phải tự kiểm
- *   bsp_exti_pending() đúng line 13 trước khi xử lý; ISR tạo uint32_t event
- *   rồi gọi ntos_queue_send_from_isr() - không yield, không tự context
- *   switch.
- *   ntos_queue_send_from_isr() tự set higher_priority_task_woken và tự
- *   request PendSV nếu cần - task_parser phải preempt task_low gần như ngay
- *   lập tức sau khi ISR return, rồi tự receive() đúng event vừa gửi.
- *   Nếu queue full, ntos_queue_send_from_isr() trả NTOS_ERR_QUEUE_FULL (ISR
- *   không block).
+ * A parser task blocks waiting for data while a lower-priority CPU-bound task
+ * runs. The interrupt sends an event into the queue and wakes the parser,
+ * verifying ISR-safe queue usage and deferred preemption.
+ *
+ * task_low chạy CPU-bound thay vì idle để chứng minh điều mạnh hơn: nút bấm
+ * phải giành lại CPU từ một task đang thực sự RUNNING, không chỉ đánh thức
+ * task_parser lúc CPU đang rảnh.
+ *
+ * KEY1 dùng vector EXTI15_10 (dùng chung line 10-15), khác KEY2 dùng EXTI1
+ * riêng ở test semaphore - nên handler ở đây phải tự kiểm đúng line của mình
+ * trước khi xử lý, xem lý do tại chỗ khai báo handler bên dưới.
  */
 #include <ntos/ntos.h>
 #include <board.h>
@@ -91,26 +86,34 @@ static void task_parser(void *argument)
     }
 }
 
-/* CPU-bound cố ý không delay - đóng vai "đang chạy" để chứng minh task_parser
- * (priority cao hơn) preempt được nó ngay khi ISR send bắn ra. */
 static void task_low(void *argument)
 {
     (void)argument;
 
-    /* Enable NVIC EXTI15_10 ngay khi task này bắt đầu chạy - không bắt buộc
-     * về an toàn (ntos_queue_send_from_isr() an toàn kể cả trước khi
-     * scheduler chạy, xem @note trong ntos_queue.h), chỉ là good practice. */
+    /* Bật NVIC EXTI15_10 ngay khi task này bắt đầu chạy, không phải trong
+     * main()/trước ntos_start(): nếu nút được bấm sớm hơn - trước khi có bất
+     * kỳ task nào chờ - ntos_queue_send_from_isr() sẽ chỉ ghi item vào buffer
+     * mà không đánh thức ai, và lần bấm đó coi như bị bỏ lỡ khỏi kịch bản
+     * test thay vì được quan sát như một sự kiện preempt thật. */
     bsp_exti_config(BOARD_KEY1_PORT, BOARD_KEY1_PIN, BSP_EXTI_TRIGGER_FALLING);
 
+    /* Không delay: task này phải luôn ở trạng thái RUNNING để việc bấm nút
+     * chứng minh được task_parser thật sự preempt một task đang chạy, không
+     * phải chỉ đánh thức nó lúc CPU rảnh. */
     for (;;)
     {
         g_low_run_count++;
     }
 }
 
-/* KEY1 = PC13 -> EXTI line 13 -> vector DÙNG CHUNG EXTI15_10 - phải tự kiểm
- * bsp_exti_pending() đúng line 13 trước khi xử lý, vì handler này còn có thể
- * bị gọi bởi line 10-12/14/15 nếu sau này có nguồn ngắt khác dùng chung. */
+/* EXTI15_10 là một vector dùng chung cho toàn bộ line 10-15 - CPU nhảy vào
+ * đây bất kể line nào trong nhóm đó pending, nên phải tự kiểm đúng line 13
+ * (KEY1) trước khi xử lý; nếu không, một nguồn ngắt khác cùng nhóm (nếu sau
+ * này có) sẽ bị xử lý nhầm như thể nút KEY1 vừa được bấm. Dùng
+ * ntos_queue_send_from_isr() thay vì ntos_queue_send(): ISR không có TCB
+ * riêng để scheduler đưa vào wait list và không được tự chọn task kế tiếp -
+ * nó chỉ ghi item, chuyển waiter sang READY nếu có, rồi để PendSV xử lý phần
+ * switch thật sau khi return. */
 void EXTI15_10_IRQHandler(void)
 {
     if (bsp_exti_pending(BOARD_KEY1_PIN))
@@ -127,6 +130,10 @@ void EXTI15_10_IRQHandler(void)
         status = ntos_queue_send_from_isr(&event_queue, &event, &higher_priority_task_woken);
         g_queue_higher_priority_task_woken = higher_priority_task_woken;
 
+        /* Đếm riêng thành công/đầy để phân biệt qua UART lúc debug: nếu
+         * bấm nút dồn dập nhanh hơn tốc độ parser tiêu thụ, event_queue có
+         * thể đầy và một số lần bấm sẽ không được ghi nhận - đây là hành vi
+         * đúng của một queue có capacity hữu hạn, không phải lỗi. */
         if (status == NTOS_OK)
         {
             g_queue_isr_send_count++;
@@ -135,7 +142,6 @@ void EXTI15_10_IRQHandler(void)
         {
             g_queue_isr_full_count++;
         }
-        /* ntos_queue_send_from_isr() đã tự request PendSV nếu cần - không làm gì thêm. */
     }
 }
 

@@ -69,9 +69,11 @@ ntos_status_t ntos_queue_send(ntos_queue_t *queue, const void *item, ntos_tick_t
         return NTOS_ERR_INVALID_ARGUMENT;
     }
 
-    /* Loop lại sau mỗi lần bị wake làm sender - xem §13 roadmap: được wake
-     * không có nghĩa chắc chắn còn chỗ trống (task khác có thể gửi trước),
-     * nên phải re-check điều kiện thay vì giả định thành công. */
+    /* Wake không đặt chỗ (reserve slot) cho sender này - nó chỉ được chuyển
+     * READY, chưa chắc chạy lại ngay. Một sender khác có thể được lập lịch
+     * trước và giành mất chỗ trống vừa rảnh ra. Vì vậy phải quay lại đầu vòng
+     * lặp để tự kiểm tra `count < capacity` lần nữa mỗi khi được wake, thay vì
+     * coi việc được wake là bằng chứng đã có chỗ để ghi. */
     for (;;)
     {
         irq_state = ntos_port_irq_save();
@@ -89,6 +91,8 @@ ntos_status_t ntos_queue_send(ntos_queue_t *queue, const void *item, ntos_tick_t
 
                 ntos_task_make_ready(receiver);
 
+                /* ntos_queue_send() chỉ được gọi từ task context, nên luôn có
+                 * một task hiện hành để so priority với receiver vừa wake. */
                 NTOS_ASSERT(ntos_current_tcb != NULL);
                 need_switch = (receiver->priority > ntos_current_tcb->priority);
 
@@ -112,17 +116,14 @@ ntos_status_t ntos_queue_send(ntos_queue_t *queue, const void *item, ntos_tick_t
             return NTOS_ERR_QUEUE_FULL;
         }
 
-        /* Chặng 9B chỉ hỗ trợ NTOS_NO_WAIT/NTOS_WAIT_FOREVER - mọi giá trị
-         * timeout khác 0 đều chờ vô hạn như WAIT_FOREVER (giống ntos_sem_take()). */
+        /* Không có đường wake-theo-thời-hạn cho sender đang chờ (chỉ
+         * ntos_tick_handler() wake task delay) - mọi giá trị timeout khác 0
+         * đều được xử lý như chờ vô hạn. */
         ntos_task_block_current(&queue->waiting_senders, NTOS_BLOCK_QUEUE_SEND);
 
         ntos_port_irq_restore(irq_state);
 
         ntos_port_request_context_switch();
-
-        /* Chạy lại tới đây sau khi ntos_queue_receive() giải phóng một chỗ
-         * trống và wake sender này - quay lên đầu loop để tự gửi lại, KHÔNG
-         * giả định chỗ trống vẫn còn (sender khác có thể đã chiếm mất). */
     }
 }
 
@@ -135,9 +136,11 @@ ntos_status_t ntos_queue_receive(ntos_queue_t *queue, void *item, ntos_tick_t ti
         return NTOS_ERR_INVALID_ARGUMENT;
     }
 
-    /* Loop lại sau mỗi lần bị wake làm receiver - được wake không có nghĩa
-     * item chắc chắn còn đó (receiver/task khác có thể lấy mất trước), nên
-     * phải re-check `count` thay vì trả OK ngay sau khi resume (§13). */
+    /* Wake không giao item (handoff) cho receiver này - nó chỉ được chuyển
+     * READY, chưa chắc chạy lại ngay, và một receiver khác có thể chạy trước
+     * rồi lấy mất item vừa được gửi vào. Vì vậy phải quay lại đầu vòng lặp
+     * để tự kiểm tra `count > 0` lần nữa mỗi khi được wake, thay vì trả
+     * NTOS_OK ngay sau khi resume mà không xác nhận item còn tồn tại. */
     for (;;)
     {
         irq_state = ntos_port_irq_save();
@@ -155,6 +158,8 @@ ntos_status_t ntos_queue_receive(ntos_queue_t *queue, void *item, ntos_tick_t ti
 
                 ntos_task_make_ready(sender);
 
+                /* ntos_queue_receive() chỉ được gọi từ task context, nên luôn
+                 * có một task hiện hành để so priority với sender vừa wake. */
                 NTOS_ASSERT(ntos_current_tcb != NULL);
                 need_switch = (sender->priority > ntos_current_tcb->priority);
 
@@ -183,10 +188,6 @@ ntos_status_t ntos_queue_receive(ntos_queue_t *queue, void *item, ntos_tick_t ti
         ntos_port_irq_restore(irq_state);
 
         ntos_port_request_context_switch();
-
-        /* Chạy lại tới đây sau khi ntos_queue_send()/send_from_isr() wake
-         * receiver này - quay lên đầu loop để tự lấy item, KHÔNG giả định item
-         * vẫn còn (receiver khác có thể đã lấy mất). */
     }
 }
 
@@ -216,9 +217,13 @@ ntos_status_t ntos_queue_send_from_isr(ntos_queue_t *queue, const void *item, bo
 
             ntos_task_make_ready(receiver);
 
-            /* Giống ntos_sem_give_from_isr(): chỉ so priority/preempt khi
-             * scheduler đã thực sự chạy - không dereference ntos_current_tcb
-             * dựa trên giả định thứ tự BSP enable ngắt (xem ntos_sem.c). */
+            /* Nếu ISR chạy trước khi task đầu tiên từng được chọn,
+             * ntos_current_tcb chưa trỏ tới task hợp lệ nào - so priority với
+             * nó lúc đó sẽ đọc dữ liệu rác. Chặn bằng ntos_scheduler_running
+             * thay vì giả định caller luôn bật ngắt sau khi scheduler chạy:
+             * receiver vẫn được chuyển READY bình thường ở trên, chỉ riêng
+             * phần "có cần preempt ai không" bị bỏ qua vì chưa có câu trả lời
+             * hợp lệ. */
             if (ntos_scheduler_running && (receiver->priority > ntos_current_tcb->priority))
             {
                 *higher_priority_task_woken = true;

@@ -183,9 +183,13 @@ void ntos_task_make_ready(ntos_tcb_t *task)
     NTOS_ASSERT(task->ready_item.container == NULL);
     NTOS_ASSERT(task->wait_item.container != NULL);
 
-    /* Dùng chung cho cả wake receiver/sender (queue) lẫn wake waiter
-     * (semaphore) - chỉ đưa task READY, không copy/handoff dữ liệu gì (đó là
-     * việc riêng của từng module gọi nó). */
+    /* Chỉ chuyển state/list membership, không copy hay giao (handoff) bất kỳ
+     * dữ liệu nào - bán kính ảnh hưởng của hàm này dừng lại ở "task chạy được
+     * chưa", còn "task chạy lại có thực sự lấy được thứ nó cần không" là việc
+     * riêng của caller (token semaphore, item trong buffer). Nhờ giữ ranh
+     * giới rõ như vậy, cùng một hàm mới dùng chung được cho semaphore
+     * (handoff trực tiếp) lẫn queue (phải tự re-check sau khi chạy lại) dù
+     * hai bên có ngữ nghĩa khác nhau. */
     ntos_list_remove(&task->wait_item);
     task->block_reason = NTOS_BLOCK_NONE;
     task->state = NTOS_TASK_READY;

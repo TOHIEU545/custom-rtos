@@ -75,17 +75,21 @@ ntos_status_t ntos_sem_take(ntos_semaphore_t *sem, ntos_tick_t timeout)
         return NTOS_ERR_TIMEOUT;
     }
 
-    /* Chặng 9A chỉ hỗ trợ NTOS_NO_WAIT/NTOS_WAIT_FOREVER (không có finite
-     * timeout) - mọi giá trị timeout khác 0 đều chờ vô hạn như WAIT_FOREVER. */
+    /* Không có đường wake-theo-thời-hạn cho task đang chờ semaphore (chỉ
+     * ntos_tick_handler() wake task delay) - nên mọi giá trị timeout khác 0
+     * đều được xử lý như chờ vô hạn thay vì âm thầm coi là timeout hữu hạn
+     * không hỗ trợ. */
     ntos_task_block_current(&sem->waiting_tasks, NTOS_BLOCK_SEMAPHORE);
 
     ntos_port_irq_restore(irq_state);
 
     ntos_port_request_context_switch();
 
-    /* Task chỉ chạy lại tới đây sau khi PendSV chọn nó, tức là đã được
-     * ntos_sem_give()/give_from_isr() wake bằng direct handoff - token coi
-     * như đã được giao thẳng cho waiter, không cần trừ count lần nữa. */
+    /* Task chỉ có thể chạy lại tới điểm này sau khi một give() khác chọn
+     * chính nó làm waiter và chuyển nó READY - tức token đã được giao thẳng
+     * cho task này (direct handoff). Không trừ count ở đây: count chỉ tăng
+     * khi give() không có waiter nào, nên không có gì để trừ - trừ thêm sẽ
+     * làm count âm hoặc trừ nhầm phần dành cho lượt take() khác. */
     return NTOS_OK;
 }
 
@@ -105,11 +109,17 @@ ntos_status_t ntos_sem_give(ntos_semaphore_t *sem)
 
     if (!ntos_list_is_empty(&sem->waiting_tasks))
     {
-        /* Direct handoff: token đi thẳng cho waiter, KHÔNG tăng sem->count. */
+        /* Token đi thẳng cho waiter thay vì tăng count rồi để waiter tự lấy
+         * lại - nếu làm cả hai, cùng một give() sẽ bị tính hai lần (một lần
+         * nằm trong count, một lần đã trao cho waiter), cho phép một take()
+         * khác lấy nhầm phần chưa thuộc về nó. */
         waiter = sem_select_highest_waiter(sem);
         waiter_priority = waiter->priority;
         ntos_task_make_ready(waiter);
 
+        /* ntos_sem_give() chỉ được gọi từ task context, nên luôn có một task
+         * hiện hành để so priority - khác ntos_sem_give_from_isr(), nơi ISR
+         * có thể chạy trước khi task đầu tiên từng được chọn. */
         NTOS_ASSERT(ntos_current_tcb != NULL);
         if (waiter_priority > ntos_current_tcb->priority)
         {
@@ -158,6 +168,12 @@ ntos_status_t ntos_sem_give_from_isr(ntos_semaphore_t *sem, bool *higher_priorit
 
         ntos_task_make_ready(waiter);
 
+        /* Nếu ISR chạy trước khi task đầu tiên từng được chọn, ntos_current_tcb
+         * chưa trỏ tới một task hợp lệ nào - so priority với nó lúc đó sẽ đọc
+         * dữ liệu rác. Chặn bằng ntos_scheduler_running thay vì dereference rồi
+         * assert non-NULL: waiter vẫn được chuyển READY bình thường ở trên,
+         * chỉ riêng phần "có cần preempt ai không" là chưa có câu trả lời hợp lệ
+         * nên bỏ qua, không phải lỗi. */
         if (ntos_scheduler_running && (waiter->priority > ntos_current_tcb->priority))
         {
             *higher_priority_task_woken = true;

@@ -1,28 +1,12 @@
 /*
- * Integration test cho Chặng 9A - semaphore CORE (chỉ task context, KHÔNG
- * ISR - xem chang09_semaphore_isr.c cho phần ISR give).
+ * Integration test for semaphore behavior in task context.
  *
- * Kiến trúc: conductor priority cao nhất (7, không bao giờ bị preempt giữa
- * các bước) điều khiển toàn bộ kịch bản. waiter_high(5)/waiter_low(2) chỉ
- * block một lần lúc khởi động rồi để conductor điều khiển nhịp give().
+ * Verifies immediate take, non-blocking failure, blocking waiters,
+ * priority-based wake-up, direct handoff, and maximum-count handling.
  *
- * Test 1-3 (không cần block, chạy tuần tự trong conductor):
- *   1. init đúng: count/max_count/waiting_tasks đúng giá trị.
- *   2. count > 0: take() thành công, count giảm.
- *   3. count == 0 + NTOS_NO_WAIT: trả NTOS_ERR_TIMEOUT, không block.
- *
- * Test 4-8 (blocking, direct handoff, priority wake):
- *   4-5. waiter_high/waiter_low cùng ntos_sem_take(WAIT_FOREVER) khi count==0
- *        -> cả hai BLOCKED đúng invariant (ready_item.container == NULL,
- *        wait_item.container == &sem.waiting_tasks).
- *   6. give() lần 1 -> wake waiter_high (priority cao hơn) trước, waiter_low
- *      vẫn BLOCKED, count vẫn == 0 (direct handoff - không tăng count).
- *   7. give() lần 2 -> wake waiter_low.
- *   8. Cả hai ntos_sem_take() phải trả NTOS_OK sau khi task chạy lại.
- *
- * Test 9-10 (không waiter):
- *   9. give() khi không có waiter -> count tăng.
- *   10. give() khi count == max_count -> NTOS_ERR_RESOURCE_FULL.
+ * The conductor task has the highest priority so state checks happen in a
+ * deterministic order; waiter tasks run only when the conductor explicitly
+ * blocks.
  *
  * TEST-ONLY: include thẳng kernel/internal để đọc ready_lists[]/
  * ntos_list_is_empty() (xem NTOS_CODING_CONVENTION.md mục 2.4).
@@ -65,6 +49,10 @@ static void uart_write_pass_fail(const char *name, bool ok)
     bsp_uart_write_string(ok ? ": PASS\r\n" : ": FAIL\r\n");
 }
 
+/* Kiểm cả state lẫn hai list-membership, không chỉ state: một bug chỉ cập
+ * nhật state == BLOCKED mà quên gỡ ready_item hoặc quên gắn wait_item vẫn có
+ * thể khiến task trông "đã block" trong khi thật ra vẫn còn trong ready list
+ * (bị scheduler chọn nhầm) hoặc không hề đăng ký để được give() đánh thức. */
 static bool waiter_blocked_correctly(const ntos_tcb_t *tcb)
 {
     return (tcb->state == NTOS_TASK_BLOCKED) &&
@@ -72,6 +60,9 @@ static bool waiter_blocked_correctly(const ntos_tcb_t *tcb)
            (tcb->wait_item.container == &sem.waiting_tasks);
 }
 
+/* Chỉ cần block một lần rồi ghi lại kết quả - phần còn lại của test không
+ * cần task này làm gì thêm. Vòng lặp delay giữ task tồn tại mà không chiếm
+ * CPU (conductor vẫn priority cao hơn nên hầu như không nhường CPU cho nó). */
 static void task_waiter_high(void *argument)
 {
     (void)argument;
@@ -84,6 +75,9 @@ static void task_waiter_high(void *argument)
     }
 }
 
+/* Cùng vai trò với task_waiter_high, chỉ khác priority - dùng để chứng minh
+ * give() chọn đúng waiter theo priority chứ không phải theo thứ tự vào wait
+ * list. */
 static void task_waiter_low(void *argument)
 {
     (void)argument;
@@ -96,6 +90,11 @@ static void task_waiter_low(void *argument)
     }
 }
 
+/* Conductor dùng priority cao nhất trong toàn bộ file để không ai chen ngang
+ * được giữa hai bước kiểm tra: waiter_high/waiter_low chỉ có cơ hội chạy tại
+ * các điểm ntos_delay() mà conductor chủ động chọn bên dưới, nên thứ tự quan
+ * sát được là xác định thay vì phụ thuộc việc scheduler tình cờ chọn ai chạy
+ * trước. */
 static void task_conductor(void *argument)
 {
     ntos_status_t status;
@@ -104,21 +103,26 @@ static void task_conductor(void *argument)
 
     bsp_uart_write_string("[9A] chang09_semaphore: bat dau\r\n");
 
-    /* Test 1: init - count>0 để Test 2 lấy được ngay. */
+    /* count khởi tạo > 0 để bước kiểm tra kế tiếp lấy được ngay mà không phải
+     * đi qua nhánh block trước. */
     ntos_sem_init(&sem, 1U, 1U);
     uart_write_pass_fail("init_fields_correct",
         (sem.count == 1U) && (sem.max_count == 1U) && ntos_list_is_empty(&sem.waiting_tasks));
 
-    /* Test 2: count>0 -> take thành công, count giảm. */
     status = ntos_sem_take(&sem, NTOS_NO_WAIT);
     uart_write_pass_fail("take_success_decrements_count", (status == NTOS_OK) && (sem.count == 0U));
 
-    /* Test 3: count==0 + NO_WAIT -> TIMEOUT, không block. */
+    /* count đã về 0 và timeout là NTOS_NO_WAIT - take() phải trả lỗi ngay chứ
+     * không được rơi vào nhánh block dù chỉ trong một khoảnh khắc, vì
+     * NO_WAIT nghĩa là caller không chấp nhận bị treo. */
     status = ntos_sem_take(&sem, NTOS_NO_WAIT);
     uart_write_pass_fail("no_wait_returns_timeout_without_blocking",
         (status == NTOS_ERR_TIMEOUT) && (sem.count == 0U));
 
-    /* Test 4-5: nhường CPU để waiter_high/waiter_low tự block (count vẫn 0). */
+    /* Vì conductor luôn priority cao hơn cả hai waiter, chúng chỉ có cơ hội
+     * chạy khi conductor tự nhường CPU như thế này. Cả hai gọi
+     * ntos_sem_take(WAIT_FOREVER) ngay khi bắt đầu chạy, và count vẫn đang là
+     * 0, nên khi conductor tỉnh lại, cả hai phải đã rơi vào trạng thái chờ. */
     ntos_delay(SETTLE_TICKS);
 
     uart_write_pass_fail("both_waiters_blocked",
@@ -126,8 +130,12 @@ static void task_conductor(void *argument)
         waiter_blocked_correctly(&task_waiter_low_tcb) &&
         (sem.waiting_tasks.length == 2U));
 
-    /* Test 6: give() lần 1 -> wake waiter_high trước (priority cao hơn),
-     * direct handoff nên count không đổi. */
+    /* waiter_high vào wait list sau waiter_low (thứ tự tạo task) nhưng có
+     * priority cao hơn - give() phải chọn nó trước để chứng minh việc chọn
+     * waiter dựa trên priority chứ không phải thứ tự đăng ký. Token được
+     * trao thẳng cho waiter_high nên count phải giữ nguyên 0: nếu give() vừa
+     * trao token cho waiter vừa tăng count, cùng một lần give sẽ bị tính hai
+     * lần - một lần nằm trong count, một lần đã giao cho waiter_high. */
     status = ntos_sem_give(&sem);
     uart_write_pass_fail("give_wakes_high_priority_waiter_first_direct_handoff",
         (status == NTOS_OK) && (sem.count == 0U) &&
@@ -135,24 +143,32 @@ static void task_conductor(void *argument)
         (task_waiter_high_tcb.ready_item.container == &ready_lists[HIGH_PRIORITY]) &&
         waiter_blocked_correctly(&task_waiter_low_tcb));
 
-    /* Test 7: give() lần 2 -> wake waiter_low, hết waiter. */
+    /* waiter_low là waiter duy nhất còn lại nên lần give() thứ hai phải chọn
+     * đúng nó, không còn ai để so priority nữa. */
     status = ntos_sem_give(&sem);
     uart_write_pass_fail("give_wakes_low_priority_waiter",
         (status == NTOS_OK) && (sem.count == 0U) &&
         (task_waiter_low_tcb.state == NTOS_TASK_READY) &&
         ntos_list_is_empty(&sem.waiting_tasks));
 
-    /* Test 8: nhường CPU để cả hai waiter thực sự chạy lại và tự ghi status. */
+    /* Hai give() ở trên chỉ chuyển waiter sang READY, chưa chắc chúng đã
+     * thực sự chạy lại (conductor vẫn priority cao hơn). Nhường CPU ở đây để
+     * cả hai có cơ hội resume và tự ghi lại status trả về từ chính lời gọi
+     * take() của chúng - chỉ kiểm state == READY không chứng minh được
+     * take() có thực sự trả NTOS_OK hay không (ví dụ nếu logic wake sai và
+     * task quay lại nhánh lỗi thay vì trả thẳng OK). */
     ntos_delay(SETTLE_TICKS);
 
     uart_write_pass_fail("both_waiters_resumed_take_returned_ok",
         (g_waiter_high_take_status == NTOS_OK) && (g_waiter_low_take_status == NTOS_OK));
 
-    /* Test 9: không waiter -> give() tăng count. */
+    /* Wait list hiện đang rỗng nên give() không còn ai để trao token - phải
+     * tăng count thay vì lặng lẽ bỏ qua sự kiện give này. */
     status = ntos_sem_give(&sem);
     uart_write_pass_fail("give_without_waiter_increments_count", (status == NTOS_OK) && (sem.count == 1U));
 
-    /* Test 10: count == max_count -> RESOURCE_FULL. */
+    /* count vừa chạm max_count ở bước trên - give() tiếp theo phải từ chối
+     * thay vì để count vượt giới hạn đã khai báo lúc init. */
     status = ntos_sem_give(&sem);
     uart_write_pass_fail("give_at_max_count_returns_resource_full",
         (status == NTOS_ERR_RESOURCE_FULL) && (sem.count == 1U));

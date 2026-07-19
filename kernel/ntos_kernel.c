@@ -113,15 +113,17 @@ void ntos_tick_handler(void)
      * ntos_list_remove() trong ntos_delay()).
      *
      * QUAN TRỌNG: điều kiện `block_reason == NTOS_BLOCK_DELAY` là bắt buộc,
-     * không được rút gọn về chỉ `state == BLOCKED` - một task BLOCKED vì
-     * ntos_sem_take()/ntos_queue_receive()/send() có wake_tick CÒN NGUYÊN giá
-     * trị mặc định 0 (chưa từng ntos_delay()), và ntos_tick_reached(now, 0)
-     * gần như luôn đúng (xem ntos_tick_reached() bên dưới) - nếu không lọc
-     * block_reason, tick_handler sẽ "wake giả" task đang chờ IPC ngay tick kế
-     * tiếp, đẩy ready_item vào ready_lists[] trong khi wait_item vẫn còn
-     * nguyên trong waiting_tasks/waiting_receivers/waiting_senders - vi phạm
-     * invariant hai-list (đã từng gây assert fail thật trên board, xem lịch
-     * sử Chặng 9A). */
+     * không được rút gọn về chỉ `state == BLOCKED`. `state == BLOCKED` chỉ
+     * cho biết task không runnable, không cho biết task đang chờ hết tick hay
+     * chờ semaphore/queue. Một task BLOCKED vì IPC có `wake_tick` còn nguyên
+     * giá trị mặc định 0 (chưa từng gọi ntos_delay()), và
+     * `ntos_tick_reached(now, 0)` gần như luôn đúng (xem hàm bên dưới - đúng
+     * với mọi `now` từ 0 tới gần nửa chu kỳ wraparound). Nếu bỏ điều kiện
+     * `block_reason`, tick handler sẽ coi một task đang chờ IPC như đã hết
+     * delay ngay tick kế tiếp, đẩy `ready_item` vào `ready_lists[]` trong khi
+     * `wait_item` vẫn còn nguyên trong wait list của semaphore/queue - task
+     * đó vừa RUNNABLE vừa vẫn đăng ký chờ event, và lần block tiếp theo của
+     * nó sẽ thấy `wait_item` chưa được gỡ ra từ lần trước. */
     for (i = 0U; i < task_count; ++i)
     {
         if ((task_table[i]->state == NTOS_TASK_BLOCKED) &&

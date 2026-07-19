@@ -1,31 +1,17 @@
 /*
- * Integration test cho Chặng 9B - queue CORE (chỉ task context, KHÔNG ISR -
- * xem chang09_queue_isr.c cho phần ISR send). So với chang09_semaphore.c
- * (Chặng 9A): queue KHÔNG direct-handoff như semaphore - receiver/sender được
- * wake vẫn phải tự re-check điều kiện và tự copy dữ liệu, vì một task khác
- * có thể chạy trước và giành mất item/chỗ trống.
+ * Integration test for queue behavior in task context.
  *
- * Test A (queue_a, capacity 2, không cần task khác) - ring buffer cơ bản:
- * FIFO, full/empty detection, index wrap ở cả write_index và read_index,
- * chạy tuần tự trong conductor bằng toàn NTOS_NO_WAIT.
+ * Verifies ring-buffer FIFO behavior, full/empty handling, index wrap-around,
+ * blocking receivers, blocking senders, priority-based waiter selection and
+ * condition re-check after wake-up.
  *
- * Test B (queue_b, capacity 1) - blocking receiver: receiver_high(5) và
- * receiver_low(2) cùng block WAIT_FOREVER khi queue rỗng; conductor (priority
- * 7, không bao giờ bị preempt giữa các bước) send() lần lượt và kiểm đúng thứ
- * tự wake theo priority, đồng thời xác nhận receiver thật sự lấy đúng giá trị
- * sau khi resume (không chỉ "được wake" mà còn "tự copy được item").
- *
- * Test C (queue_c, capacity 1) - blocking sender, đối xứng Test B:
- * sender_high(6) và sender_low(3) cùng block WAIT_FOREVER khi queue đầy;
- * conductor receive() lần lượt để giải phóng chỗ trống, kiểm đúng thứ tự wake
- * và xác nhận sender thật sự gửi được giá trị của chính nó.
- *
- * QUAN TRỌNG về thứ tự init: queue_c phải được MỒI ĐẦY trong main() TRƯỚC
- * ntos_start() - vì ngay khi conductor gọi ntos_delay() lần đầu (đầu Test B),
- * MỌI task còn lại (kể cả sender_high/sender_low priority cao hơn receiver)
- * đều có thể được scheduler chạy lần đầu theo thứ tự priority, không theo thứ
- * tự "test phase" ta nghĩ trong đầu. Nếu queue_c chưa đầy lúc đó, sender sẽ
- * gửi thành công ngay (không block), phá vỡ toàn bộ giả định của Test C.
+ * queue_c phải được mồi đầy trong main(), trước ntos_start() - không phải bên
+ * trong conductor. Ngay khi conductor gọi ntos_delay() lần đầu, mọi task còn
+ * lại (kể cả sender_high/sender_low, priority cao hơn cả hai receiver) đều có
+ * thể được scheduler chạy lần đầu tiên, không theo thứ tự các hàm xuất hiện
+ * trong file này. Nếu queue_c chưa đầy vào đúng lúc đó, sender sẽ gửi thành
+ * công ngay thay vì block, và toàn bộ phần kiểm tra blocking sender phía sau
+ * sẽ dựa trên một tiền đề sai.
  *
  * TEST-ONLY: include thẳng kernel/internal để đọc ready_lists[] (xem
  * NTOS_CODING_CONVENTION.md mục 2.4) - ntos_queue_t/ntos_tcb_t đã public hoàn
@@ -91,7 +77,9 @@ static void uart_write_pass_fail(const char *name, bool ok)
     bsp_uart_write_string(ok ? ": PASS\r\n" : ": FAIL\r\n");
 }
 
-/* --- Test A: queue_a - ring buffer thuần, không cần task khác. --- */
+/* Ring buffer thuần, chạy tuần tự trong conductor bằng toàn NTOS_NO_WAIT -
+ * không cần task nào khác vì mọi thao tác đều thành công hoặc thất bại ngay
+ * lập tức, không có nhánh nào cần block. */
 static void conductor_run_test_a(void)
 {
     ntos_status_t status;
@@ -139,7 +127,10 @@ static void conductor_run_test_a(void)
     uart_write_pass_fail("receive_after_wrap_fifo_correct_second", (status == NTOS_OK) && (value == 50U));
 }
 
-/* --- Test B: queue_b - blocking receiver, wake theo priority. --- */
+/* Kiểm cả state lẫn hai list-membership: chỉ kiểm state == BLOCKED không đủ
+ * để chứng minh task đã thật sự rời ready list và gắn đúng vào
+ * waiting_receivers - hai thao tác đó phải xảy ra cùng nhau, một bug chỉ cập
+ * nhật state mà quên list vẫn có thể lọt qua nếu chỉ kiểm state. */
 static bool receiver_blocked_correctly(const ntos_tcb_t *tcb)
 {
     return (tcb->state == NTOS_TASK_BLOCKED) &&
@@ -152,9 +143,11 @@ static void conductor_run_test_b(void)
     ntos_status_t status;
     uint32_t value;
 
-    /* Nhường CPU đủ lâu để MỌI task còn lại (receiver_high/low, sender_high/
-     * low) chạy lần đầu và tự block trên queue tương ứng của chúng - xem giải
-     * thích thứ tự init ở đầu file. */
+    /* Conductor có priority cao nhất nên receiver_high/receiver_low/
+     * sender_high/sender_low chỉ có cơ hội chạy khi nó tự nhường CPU như thế
+     * này - cả bốn gọi API blocking ngay khi bắt đầu chạy, nên nhường CPU một
+     * lần ở đây là đủ để tất cả tự đưa mình vào đúng wait list trước khi các
+     * bước kiểm tra bên dưới đọc lại trạng thái của chúng. */
     ntos_delay(SETTLE_TICKS);
 
     uart_write_pass_fail("both_receivers_blocked_on_queue_b",
@@ -162,6 +155,9 @@ static void conductor_run_test_b(void)
         receiver_blocked_correctly(&task_receiver_low_tcb) &&
         (queue_b.waiting_receivers.length == 2U));
 
+    /* receiver_high vào wait list sau receiver_low (thứ tự tạo task) nhưng có
+     * priority cao hơn - send() phải wake nó trước để chứng minh việc chọn
+     * waiter dựa trên priority chứ không phải thứ tự đăng ký chờ. */
     value = 111U;
     status = ntos_queue_send(&queue_b, &value, NTOS_NO_WAIT);
     uart_write_pass_fail("send_wakes_highest_priority_receiver_first",
@@ -171,14 +167,21 @@ static void conductor_run_test_b(void)
         receiver_blocked_correctly(&task_receiver_low_tcb) &&
         (queue_b.waiting_receivers.length == 1U));
 
-    /* Nhường CPU để receiver_high thực sự chạy lại và tự receive (queue
-     * KHÔNG direct-handoff - receiver phải tự copy item). */
+    /* send() ở trên chỉ chuyển receiver_high sang READY, chưa chắc nó đã
+     * thực sự chạy lại và lấy item (conductor vẫn priority cao hơn). Nhường
+     * CPU để nó resume và tự copy item ra khỏi buffer - kiểm giá trị nhận
+     * được (không chỉ status OK) mới chứng minh được việc "được wake" đã
+     * thật sự dẫn tới một lần receive thành công, không phải trùng hợp còn
+     * giá trị cũ trong biến. */
     ntos_delay(SETTLE_TICKS);
 
     uart_write_pass_fail("high_receiver_resumed_and_received_value",
         (g_receiver_high_status == NTOS_OK) && (g_receiver_high_value == 111U) &&
         (queue_b.count == 0U));
 
+    /* receiver_high đã nhận item và không gọi receive() lần hai (nó chỉ
+     * delay-loop sau khi resume), nên giờ chỉ còn receiver_low trong wait
+     * list - send() lần này phải chọn đúng nó. */
     value = 222U;
     status = ntos_queue_send(&queue_b, &value, NTOS_NO_WAIT);
     uart_write_pass_fail("send_wakes_remaining_low_priority_receiver",
@@ -193,7 +196,8 @@ static void conductor_run_test_b(void)
         (queue_b.count == 0U));
 }
 
-/* --- Test C: queue_c - blocking sender, đối xứng Test B. --- */
+/* Đối xứng với receiver_blocked_correctly(): kiểm cả state lẫn việc wait_item
+ * đã gắn đúng vào waiting_senders, không chỉ state. */
 static bool sender_blocked_correctly(const ntos_tcb_t *tcb)
 {
     return (tcb->state == NTOS_TASK_BLOCKED) &&
@@ -206,16 +210,22 @@ static void conductor_run_test_c(void)
     ntos_status_t status;
     uint32_t value;
 
-    /* queue_c đã được main() mồi đầy (QUEUE_C_PRIME_VALUE) TRƯỚC ntos_start()
-     * - sender_high/sender_low đã tự block từ trong lúc conductor_run_test_b()
-     * gọi ntos_delay() (đó là lần settle-delay đầu tiên, mọi task khác đều
-     * chạy lần đầu ở đó), không cần delay thêm ở đây. */
+    /* queue_c đã được mồi đầy trong main() từ trước ntos_start(), nên
+     * sender_high/sender_low thấy queue đầy ngay từ lần gửi đầu tiên và tự
+     * block - việc đó đã xảy ra trong lần nhường CPU đầu tiên của
+     * conductor_run_test_b() (mọi task khác đều chạy lần đầu ở đó), nên
+     * không cần nhường CPU thêm ở đây trước khi kiểm tra. */
     uart_write_pass_fail("both_senders_blocked_on_queue_c",
         sender_blocked_correctly(&task_sender_high_tcb) &&
         sender_blocked_correctly(&task_sender_low_tcb) &&
         (queue_c.waiting_senders.length == 2U) && (queue_c.count == 1U));
 
-    /* receive() giải phóng 1 chỗ trống -> phải wake sender priority cao nhất. */
+    /* receive() giải phóng đúng một chỗ trống - sender_high có priority cao
+     * hơn sender_low nên phải được chọn để lấp vào chỗ đó trước, bất kể thứ
+     * tự hai sender đã block trước đó. Giá trị nhận được phải là giá trị đã
+     * mồi từ main(), chứng minh receive() lấy đúng item có sẵn trong buffer
+     * chứ không lẫn với item của sender vừa được wake (sender đó chưa kịp
+     * ghi gì). */
     status = ntos_queue_receive(&queue_c, &value, NTOS_NO_WAIT);
     uart_write_pass_fail("receive_returns_primed_value_and_wakes_highest_priority_sender",
         (status == NTOS_OK) && (value == QUEUE_C_PRIME_VALUE) &&
@@ -224,12 +234,18 @@ static void conductor_run_test_c(void)
         sender_blocked_correctly(&task_sender_low_tcb) &&
         (queue_c.waiting_senders.length == 1U));
 
-    /* Nhường CPU để sender_high thực sự chạy lại và tự gửi item của nó. */
+    /* receive() ở trên chỉ chuyển sender_high sang READY, chưa chắc nó đã
+     * thực sự chạy lại để ghi item của nó vào chỗ trống vừa giải phóng.
+     * Nhường CPU để nó resume và tự gửi - kiểm count quay lại 1 mới chứng
+     * minh được item thật sự đã được ghi, không chỉ trạng thái task đổi. */
     ntos_delay(SETTLE_TICKS);
 
     uart_write_pass_fail("high_sender_resumed_and_sent_value",
         (g_sender_high_status == NTOS_OK) && (queue_c.count == 1U));
 
+    /* Item hiện có trong buffer phải là của sender_high (vừa ghi ở bước
+     * trên), và giải phóng chỗ trống lần này phải đến lượt sender_low - waiter
+     * priority cao hơn duy nhất còn lại đã rời wait list ở bước trước. */
     status = ntos_queue_receive(&queue_c, &value, NTOS_NO_WAIT);
     uart_write_pass_fail("receive_returns_high_sender_value_then_wakes_low_sender",
         (status == NTOS_OK) && (value == SENDER_HIGH_VALUE) &&
@@ -241,11 +257,19 @@ static void conductor_run_test_c(void)
     uart_write_pass_fail("low_sender_resumed_and_sent_value",
         (g_sender_low_status == NTOS_OK) && (queue_c.count == 1U));
 
+    /* Item cuối cùng trong buffer phải là của sender_low - xác nhận toàn bộ
+     * chuỗi handoff-qua-buffer (không phải direct handoff) đã đi đúng thứ tự
+     * từ đầu tới cuối. */
     status = ntos_queue_receive(&queue_c, &value, NTOS_NO_WAIT);
     uart_write_pass_fail("final_receive_returns_low_sender_value",
         (status == NTOS_OK) && (value == SENDER_LOW_VALUE));
 }
 
+/* Conductor dùng priority cao nhất trong toàn bộ file để không ai chen ngang
+ * được giữa hai bước kiểm tra: bốn task còn lại chỉ có cơ hội chạy tại các
+ * điểm ntos_delay() mà conductor chủ động chọn bên trong ba hàm dưới đây, nên
+ * thứ tự quan sát được là xác định thay vì phụ thuộc scheduler tình cờ chọn
+ * ai chạy trước. */
 static void task_conductor(void *argument)
 {
     (void)argument;
@@ -264,6 +288,10 @@ static void task_conductor(void *argument)
     }
 }
 
+/* Nhận đúng một item rồi ghi lại status/giá trị để conductor kiểm tra - phần
+ * còn lại của test không cần task này làm gì thêm. Vòng lặp delay giữ task
+ * tồn tại mà không chiếm CPU (conductor vẫn priority cao hơn nên hầu như
+ * không nhường CPU cho nó nữa sau lần resume này). */
 static void task_receiver_high(void *argument)
 {
     ntos_status_t status;
@@ -281,6 +309,8 @@ static void task_receiver_high(void *argument)
     }
 }
 
+/* Cùng vai trò với task_receiver_high, chỉ khác priority - dùng để chứng
+ * minh send() chọn waiter theo priority chứ không theo thứ tự đăng ký chờ. */
 static void task_receiver_low(void *argument)
 {
     ntos_status_t status;
@@ -298,6 +328,9 @@ static void task_receiver_low(void *argument)
     }
 }
 
+/* Gửi đúng một item (giá trị cố định, khác với sender_low, để phân biệt được
+ * trong buffer item nào tới từ ai) rồi ghi lại status - đối xứng với
+ * task_receiver_high nhưng ở chiều gửi. */
 static void task_sender_high(void *argument)
 {
     ntos_status_t status;
@@ -314,6 +347,7 @@ static void task_sender_high(void *argument)
     }
 }
 
+/* Cùng vai trò với task_sender_high, chỉ khác priority. */
 static void task_sender_low(void *argument)
 {
     ntos_status_t status;
