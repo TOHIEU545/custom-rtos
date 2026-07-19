@@ -17,9 +17,9 @@ scheduler, blocking và IPC, không phải để dùng production. Tài liệu g
 viết file này:
 
 - **Bare-metal foundation (CHẶNG 0) và exception model (CHẶNG 1): đã xong.**
-  Build/flash/debug qua CMake chạy được; `labs/01_exception_frame`,
-  `labs/02_msp_psp`, `labs/03_svc` có code + báo cáo chi tiết
-  (`labs/cortex_m3_exception_msp_psp_svc_report.md`).
+  Build/flash/debug qua CMake chạy được; code lab + báo cáo chi tiết
+  (`cortex_m3_exception_msp_psp_svc_report.md`) không còn nằm trên main-track,
+  đã chuyển sang branch `learning/cortex-m3` (xem mục "Learning material" bên dưới).
 - **Kernel (`kernel/*.c`) và port (`port/cortex_m3/*.c`) hiện toàn bộ là stub**
   (`/* TODO(stage N). */`), chưa có implementation thật: chưa có task, chưa
   scheduler, chưa context switch. `ntos_start()` chỉ là vòng lặp rỗng.
@@ -39,7 +39,6 @@ kernel/internal/    Header nội bộ kernel — chỉ port/ được phép incl
 port/cortex_m3/     Lớp nối kernel với Cortex-M3: SVC, PendSV, PSP/MSP, ASM.
 bsp/stm32f10x/       Board support: clock, gpio, uart, exti, startup, linker.
 cmsis/              Vendor: CMSIS core + STM32F10x device headers (header-only).
-labs/               Firmware bare-metal thuần, KHÔNG dùng kernel/port.
 examples/           Firmware có dùng kernel/port (một khi kernel xong).
 tests/host/         Test chạy trên host (pure C, không cần board).
 tests/target/       Test chạy trên board thật.
@@ -47,8 +46,10 @@ docs/               Tài liệu thiết kế + roadmap.
 scripts/            build.sh, flash.sh, clean.sh.
 tools/               Cấu hình OpenOCD, GDB.
 cmake/               Toolchain file, compiler options, hàm ntos_add_firmware().
-cmake-learning/      Bài tập học CMake độc lập, KHÔNG liên quan tới ntos kernel.
 ```
+
+Bare-metal labs (Cortex-M3 exception/MSP-PSP/SVC) và bài tập CMake độc lập
+không còn nằm trên main-track — xem mục "Learning material" bên dưới.
 
 Không thư mục nào (trừ một ngoại lệ: `port/` include thẳng `kernel/internal/`
 vì context-switch cần thấy layout TCB nội bộ) được mở đường dẫn vào phần
@@ -59,23 +60,23 @@ quan tới include đó.
 
 ```sh
 # Cấu hình + build một target (chỉ compile lại phần đổi)
-scripts/build.sh lab_exception_frame
+scripts/build.sh chang02_initial_stack
 
 # Build sạch từ đầu
-scripts/clean.sh && scripts/build.sh lab_exception_frame
+scripts/clean.sh && scripts/build.sh chang02_initial_stack
 
 # Nạp firmware.elf hiện tại (build/firmware/current.elf) qua OpenOCD
 scripts/flash.sh
 
-# Bật thêm examples/tests khi cần (mặc định chỉ labs được build)
+# Bật thêm examples khi cần (mặc định: NTOS_BUILD_TESTS=ON, NTOS_BUILD_EXAMPLES=OFF)
 cmake -S . -B build -DCMAKE_TOOLCHAIN_FILE=cmake/arm-none-eabi-toolchain.cmake \
     -DNTOS_BUILD_EXAMPLES=ON -DNTOS_BUILD_TESTS=ON
 cmake --build build --target example_basic_tasks
 ```
 
 Target firmware mới luôn khai báo qua `ntos_add_firmware()` trong
-`cmake/ntos_firmware.cmake` (xem `labs/CMakeLists.txt` để làm ví dụ), không tự
-gọi `add_executable` tay.
+`cmake/ntos_firmware.cmake` (xem `tests/target/CMakeLists.txt` để làm ví dụ),
+không tự gọi `add_executable` tay.
 
 ## Ràng buộc thiết kế cốt lõi (đọc kỹ trước khi sửa kernel/port)
 
@@ -94,10 +95,17 @@ gọi `add_executable` tay.
 - Trước một PR/commit kernel lớn, tự trả lời (theo `ntos_design.md` mục 29):
   task state nào thay đổi, task rời/vào cấu trúc nào, có cần PendSV không, có
   gọi được từ ISR không, invariant nào mới, test nào chứng minh.
-- `labs/` là bài tập bare-metal cô lập để học exception model, không phải code
-  RTOS — đừng lẫn nó với `kernel/`/`port/`.
-- `cmake-learning/` là scratch học CMake riêng, có build artifact commit sẵn
-  trong đó (thư mục `build/` bên trong nó không nằm trong `.gitignore` gốc do
-  cấu trúc lồng); không cần động vào khi làm việc trên ntos kernel.
 - Comment trong code của project này ưu tiên viết bằng tiếng Việt khi giải
   thích luồng build/script (xem `scripts/build.sh`, `scripts/flash.sh`).
+
+## Learning material (không nằm trên main-track)
+
+Quá trình học/milestone không cần thiết để hiểu, build, dùng hay test NTOS đã
+được tách khỏi nhánh chính, giữ nguyên vẹn ở Git history + 2 branch riêng:
+
+- `learning/cortex-m3` — bare-metal Cortex-M3 labs (exception frame, MSP/PSP,
+  SVC) + báo cáo chi tiết, trước đây ở `labs/`.
+- `learning/cmake` — bài tập học CMake độc lập, không liên quan STM32F103/ntos,
+  trước đây ở `cmake-learning/`.
+
+Không xoá 2 branch này khi dọn dẹp repo.

@@ -8,7 +8,6 @@ set(CMAKE_C_STANDARD_REQUIRED ON)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
 # Build groups.
-option(NTOS_BUILD_LABS "Build Cortex-M3 learning labs" OFF)
 option(NTOS_BUILD_EXAMPLES "Build ntos examples" OFF)
 option(NTOS_BUILD_TESTS "Build tests" ON)
 
@@ -29,10 +28,6 @@ if(NTOS_BUILD_EXAMPLES OR NTOS_BUILD_TESTS)
 endif()
 
 # Firmware groups.
-if(NTOS_BUILD_LABS)
-    add_subdirectory(labs)
-endif()
-
 if(NTOS_BUILD_EXAMPLES)
     add_subdirectory(examples)
 endif()

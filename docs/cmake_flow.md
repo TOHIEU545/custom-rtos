@@ -1,9 +1,10 @@
 # CMake trong ntos — luồng thật của project
 
-Tài liệu này là phần tiếp theo của [`cmake_fundamentals.md`](cmake_fundamentals.md).
-File đó nói về CMake nói chung; file này áp các khái niệm đó vào đúng
-`CMakeLists.txt` thật của `ntos`, để sau này quay lại đọc code là nhớ ra ngay
-hệ thống đang làm gì, target nào phụ thuộc target nào, lệnh nào chạy lúc nào.
+Tài liệu này áp các khái niệm CMake cơ bản vào đúng `CMakeLists.txt` thật của
+`ntos`, để sau này quay lại đọc code là nhớ ra ngay hệ thống đang làm gì, target
+nào phụ thuộc target nào, lệnh nào chạy lúc nào. Phần "CMake nói chung" (dùng để
+học, không mô tả build thật của ntos) nằm ở branch `learning/cmake`
+(`CMAKE_BASICS_REPORT.md`), không còn trên main-track.
 
 ---
 
@@ -20,10 +21,11 @@ cmsis/                          <- vendor: CMSIS core + STM32F10x device headers
 bsp/stm32f10x/                  <- board support: init clock/gpio/uart/exti + linker script
 kernel/                         <- kernel thuần, không biết gì về CPU cụ thể
 port/cortex_m3/                 <- lớp nối kernel với Cortex-M3 (SVC, PendSV, PSP/MSP)
-labs/                           <- firmware bare-metal, không dùng kernel/port
 examples/                       <- firmware có dùng kernel/port
-tests/                          <- chỗ để dành, phần lớn còn là placeholder
+tests/                          <- regression test build trên board thật (mặc định bật)
 ```
+
+Bare-metal labs (không dùng kernel/port) đã chuyển sang branch `learning/cortex-m3`.
 
 Mỗi thư mục có `CMakeLists.txt` chỉ khai báo phần của chính nó — không thư mục
 nào (trừ một ngoại lệ ở §6) mở đường dẫn vào phần private của thư mục khác.
@@ -42,19 +44,18 @@ cmake -S . -B build -DCMAKE_TOOLCHAIN_FILE=cmake/arm-none-eabi-toolchain.cmake
    compiler host (gcc thường) và toàn bộ code Cortex-M3 sẽ không biên dịch
    được (hoặc biên dịch sai kiến trúc).
 2. `project(ntos LANGUAGES C ASM)` — khai báo ngôn ngữ, kiểm tra compiler.
-3. `option(NTOS_BUILD_LABS ON)`, `option(NTOS_BUILD_EXAMPLES OFF)`,
-   `option(NTOS_BUILD_TESTS OFF)` — 3 công tắc bật/tắt cả nhóm firmware.
+3. `option(NTOS_BUILD_EXAMPLES OFF)`, `option(NTOS_BUILD_TESTS ON)` — 2 công
+   tắc bật/tắt cả nhóm firmware (tests bật mặc định, examples tắt mặc định).
 4. `include(cmake/ntos_compiler_options.cmake)` và
    `include(cmake/ntos_firmware.cmake)` — **`include()` khác `add_subdirectory()`**:
    nó chỉ nạp các lệnh `add_library()`/`function()` vào scope hiện tại (root)
 5. `add_subdirectory(cmsis)` → chạy `cmsis/CMakeLists.txt`.
 6. `add_subdirectory(bsp/stm32f10x)` → chạy `bsp/stm32f10x/CMakeLists.txt`
    (target này link `cmsis`, nên phải add sau bước 5).
-7. Nếu `NTOS_BUILD_EXAMPLES=ON`: `add_subdirectory(kernel)` rồi
-   `add_subdirectory(port/cortex_m3)`.
-8. Nếu `NTOS_BUILD_LABS=ON` (mặc định có): `add_subdirectory(labs)`.
-9. Nếu `NTOS_BUILD_EXAMPLES=ON`: `add_subdirectory(examples)`.
-10. Nếu `NTOS_BUILD_TESTS=ON`: `add_subdirectory(tests)`.
+7. Nếu `NTOS_BUILD_EXAMPLES=ON` HOẶC `NTOS_BUILD_TESTS=ON`: `add_subdirectory(kernel)`
+   rồi `add_subdirectory(port/cortex_m3)`.
+8. Nếu `NTOS_BUILD_EXAMPLES=ON`: `add_subdirectory(examples)`.
+9. Nếu `NTOS_BUILD_TESTS=ON` (mặc định có): `add_subdirectory(tests)`.
 
 ---
 
@@ -75,7 +76,7 @@ ntos_platform_stm32f10x (INTERFACE)
   = ntos_compiler_options + ntos_bsp + cmsis
   + linker script (-T bsp/stm32f10x/linker/stm32f10x.ld)
 
-add_executable(lab_xxx / example_xxx)     <- sinh ra bởi ntos_add_firmware()
+add_executable(changXX_xxx / example_xxx) <- sinh ra bởi ntos_add_firmware()
   PRIVATE ntos_platform_stm32f10x
   PRIVATE ntos_kernel + ntos_port          (chỉ khi KHÔNG có cờ BARE_METAL)
 ```
@@ -86,7 +87,7 @@ Ba loại target xuất hiện trong project:
 |---|---|---|---|
 | `INTERFACE` | `ntos_compiler_options`, `cmsis`, `ntos_platform_stm32f10x` | **Không file nào cả** — chỉ là túi thuộc tính (include dirs, defines, link options) | Không bao giờ tự build, chỉ propagate khi có ai link vào |
 | `STATIC` | `ntos_bsp`, `ntos_kernel`, `ntos_port` | `.a` (qua `ar`, không qua linker thật) | Khi có target nào đó (trực tiếp/gián tiếp) cần nó |
-| `EXECUTABLE` | `lab_exception_frame`, `example_basic_tasks`,... | `.elf` (qua `gcc` với đầy đủ cờ link, bao gồm `-T`) | Khi bạn `cmake --build --target <tên>` đúng tên đó |
+| `EXECUTABLE` | `chang02_initial_stack`, `example_basic_tasks`,... | `.elf` (qua `gcc` với đầy đủ cờ link, bao gồm `-T`) | Khi bạn `cmake --build --target <tên>` đúng tên đó |
 
 ---
 
@@ -96,9 +97,9 @@ Ba loại target xuất hiện trong project:
 vì tự gọi `add_executable` + `target_link_libraries` tay:
 
 ```cmake
-ntos_add_firmware(lab_exception_frame
+ntos_add_firmware(my_bare_metal_target
     BARE_METAL                          # bỏ qua ntos_kernel/ntos_port
-    MAIN 01_exception_frame/main.c
+    MAIN main.c
     SOURCES extra.c handler.S           # optional
     CONFIG_DIR path/to/config           # optional, thêm include riêng cho target
 )
@@ -116,7 +117,7 @@ target_link_options(${target} PRIVATE -Wl,-Map=.../${target}.map)
 ```
 
 `add_executable(${target} ...)` chính là dòng **duy nhất** biến chuỗi
-`"lab_exception_frame"` thành một cái tên CMake/make thật sự biết tới — đây là
+`"my_bare_metal_target"` thành một cái tên CMake/make thật sự biết tới — đây là
 chỗ để tra nếu bạn truyền `--target <tên gì đó>`
 
 ---
@@ -126,20 +127,18 @@ chỗ để tra nếu bạn truyền `--target <tên gì đó>`
 `add_subdirectory(X)` không đụng vào source tree. Nó khiến CMake tạo một thư
 mục `X/` **song song bên trong thư mục build** (`build/X/`), chứa
 `Makefile`, `CMakeFiles/` và output (`.o`, `.a`, `.elf`) của target khai báo
-trong `X/CMakeLists.txt`. Ví dụ sau khi configure với labs bật:
+trong `X/CMakeLists.txt`. Ví dụ sau khi configure mặc định (`NTOS_BUILD_TESTS=ON`):
 
 ```
-build/labs/
+build/tests/target/
 ├── Makefile
 ├── CMakeFiles/
-│   ├── lab_exception_frame.dir/   <- .o trung gian
-│   ├── lab_msp_psp.dir/
-│   ├── lab_svc.dir/
-│   └── lab_pendsv.dir/
-├── lab_exception_frame            <- ELF, không đuôi mở rộng
-├── lab_msp_psp
-├── lab_svc
-└── lab_pendsv
+│   ├── chang02_initial_stack.dir/   <- .o trung gian
+│   ├── chang03_first_task.dir/
+│   └── ...
+├── chang02_initial_stack            <- ELF, không đuôi mở rộng
+├── chang03_first_task
+└── ...
 ```
 
 Đây cũng là lý do `scripts/build.sh` tìm ELF bằng
@@ -173,10 +172,10 @@ một module tự ý mở đường dẫn sang phần private của module khác
 
 ```sh
 # Build (incremental — chỉ compile lại phần đổi)
-scripts/build.sh lab_exception_frame
+scripts/build.sh chang02_initial_stack
 
 # Build sạch hoàn toàn (xoá build/ trước)
-scripts/clean.sh && scripts/build.sh lab_exception_frame
+scripts/clean.sh && scripts/build.sh chang02_initial_stack
 
 # Bật thêm examples/tests khi cần
 cmake -S . -B build -DCMAKE_TOOLCHAIN_FILE=cmake/arm-none-eabi-toolchain.cmake \

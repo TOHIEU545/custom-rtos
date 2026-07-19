@@ -7,8 +7,9 @@ Canonical implementation:
 - `bsp/stm32f10x/`
 - `cmsis/`
 
-Do not inspect `labs/`, `examples/`, `tests/`, or `docs/` unless the task explicitly requires them.
-`labs/` contains isolated Cortex-M experiments and is not the ntos kernel.
+Do not inspect `examples/`, `tests/`, or `docs/` unless the task explicitly requires them.
+Bare-metal Cortex-M experiments live on the `learning/cortex-m3` branch, not on
+main-track — they are not the ntos kernel.
 Prefer opening only files directly related to the requested module.
 
 Design constraints:
