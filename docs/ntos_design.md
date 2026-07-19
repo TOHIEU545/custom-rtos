@@ -741,7 +741,7 @@ Không làm:
 > `waiting_senders`** (đoạn code này không biết gì về IPC wait list). Kết quả:
 > task vừa nằm trong ready list vừa nằm trong wait list cùng lúc - vi phạm
 > invariant §8.3, lộ ra dưới dạng `NTOS_ASSERT` fail ở `ntos_sem_take()` khi
-> task đó block lần tiếp theo (bắt được thật khi chạy `chang09_semaphore_isr`
+> task đó block lần tiếp theo (bắt được thật khi chạy `test_semaphore_isr`
 > trên board, xem GDB watch: `ready_item.container` và `wait_item.container`
 > cùng khác `NULL`). **Sửa bằng field mới `block_reason`** (`ntos_block_reason_t`,
 > `include/ntos/ntos_task.h`) thay vì suy luận qua `wait_item.container == NULL`,
@@ -1350,7 +1350,7 @@ loop forever
 > caller. `NTOS_ENABLE_STACK_FILL == 0` khiến cả hai hàm từ chối luôn (trả
 > `NTOS_ERR_INVALID_STATE`/`false`) vì không có pattern nào để quét.
 >
-> Test: `tests/target/chang10_stack_diagnostics.c` - xác nhận task mới tạo
+> Test: `tests/stack/diagnostics.c` (target `test_stack_diagnostics`) - xác nhận task mới tạo
 > (chưa từng chạy) đã báo cáo `high_water_mark_words == 16` (đúng kích thước
 > initial frame dựng sẵn lúc tạo, xem §9.3), vùng dưới initial frame vẫn giữ
 > nguyên pattern khi đọc thẳng mảng stack từ `main()` (trước `ntos_start()`);

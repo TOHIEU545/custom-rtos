@@ -76,7 +76,7 @@ ntos_platform_stm32f10x (INTERFACE)
   = ntos_compiler_options + ntos_bsp + cmsis
   + linker script (-T bsp/stm32f10x/linker/stm32f10x.ld)
 
-add_executable(changXX_xxx / example_xxx) <- sinh ra bởi ntos_add_firmware()
+add_executable(test_xxx / example_xxx)    <- sinh ra bởi ntos_add_firmware()
   PRIVATE ntos_platform_stm32f10x
   PRIVATE ntos_kernel + ntos_port          (chỉ khi KHÔNG có cờ BARE_METAL)
 ```
@@ -87,7 +87,7 @@ Ba loại target xuất hiện trong project:
 |---|---|---|---|
 | `INTERFACE` | `ntos_compiler_options`, `cmsis`, `ntos_platform_stm32f10x` | **Không file nào cả** — chỉ là túi thuộc tính (include dirs, defines, link options) | Không bao giờ tự build, chỉ propagate khi có ai link vào |
 | `STATIC` | `ntos_bsp`, `ntos_kernel`, `ntos_port` | `.a` (qua `ar`, không qua linker thật) | Khi có target nào đó (trực tiếp/gián tiếp) cần nó |
-| `EXECUTABLE` | `chang02_initial_stack`, `example_basic_tasks`,... | `.elf` (qua `gcc` với đầy đủ cờ link, bao gồm `-T`) | Khi bạn `cmake --build --target <tên>` đúng tên đó |
+| `EXECUTABLE` | `test_initial_stack`, `example_basic_tasks`,... | `.elf` (qua `gcc` với đầy đủ cờ link, bao gồm `-T`) | Khi bạn `cmake --build --target <tên>` đúng tên đó |
 
 ---
 
@@ -133,10 +133,10 @@ trong `X/CMakeLists.txt`. Ví dụ sau khi configure mặc định (`NTOS_BUILD_
 build/tests/stack/
 ├── Makefile
 ├── CMakeFiles/
-│   ├── chang02_initial_stack.dir/   <- .o trung gian
-│   └── chang10_stack_diagnostics.dir/
-├── chang02_initial_stack            <- ELF, không đuôi mở rộng
-└── chang10_stack_diagnostics
+│   ├── test_initial_stack.dir/      <- .o trung gian
+│   └── test_stack_diagnostics.dir/
+├── test_initial_stack               <- ELF, không đuôi mở rộng
+└── test_stack_diagnostics
 ```
 
 (mỗi thư mục con của `tests/` — `stack/`, `task/`, `scheduler/`, `queue/`,
@@ -174,10 +174,10 @@ một module tự ý mở đường dẫn sang phần private của module khác
 
 ```sh
 # Build (incremental — chỉ compile lại phần đổi)
-scripts/build.sh chang02_initial_stack
+scripts/build.sh test_initial_stack
 
 # Build sạch hoàn toàn (xoá build/ trước)
-scripts/clean.sh && scripts/build.sh chang02_initial_stack
+scripts/clean.sh && scripts/build.sh test_initial_stack
 
 # Bật thêm examples/tests khi cần
 cmake -S . -B build -DCMAKE_TOOLCHAIN_FILE=cmake/arm-none-eabi-toolchain.cmake \

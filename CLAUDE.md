@@ -66,10 +66,10 @@ quan tới include đó.
 
 ```sh
 # Cấu hình + build một target (chỉ compile lại phần đổi)
-scripts/build.sh chang02_initial_stack
+scripts/build.sh test_initial_stack
 
 # Build sạch từ đầu
-scripts/clean.sh && scripts/build.sh chang02_initial_stack
+scripts/clean.sh && scripts/build.sh test_initial_stack
 
 # Nạp firmware.elf hiện tại (build/firmware/current.elf) qua OpenOCD
 scripts/flash.sh

@@ -274,13 +274,13 @@ static void task_conductor(void *argument)
 {
     (void)argument;
 
-    bsp_uart_write_string("[9B] chang09_queue: bat dau\r\n");
+    bsp_uart_write_string("[queue] test_queue: bat dau\r\n");
 
     conductor_run_test_a();
     conductor_run_test_b();
     conductor_run_test_c();
 
-    bsp_uart_write_string("[9B] chang09_queue: xong\r\n");
+    bsp_uart_write_string("[queue] test_queue: xong\r\n");
 
     for (;;)
     {

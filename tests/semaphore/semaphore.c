@@ -101,7 +101,7 @@ static void task_conductor(void *argument)
 
     (void)argument;
 
-    bsp_uart_write_string("[9A] chang09_semaphore: bat dau\r\n");
+    bsp_uart_write_string("[semaphore] test_semaphore: bat dau\r\n");
 
     /* count khởi tạo > 0 để bước kiểm tra kế tiếp lấy được ngay mà không phải
      * đi qua nhánh block trước. */
@@ -173,7 +173,7 @@ static void task_conductor(void *argument)
     uart_write_pass_fail("give_at_max_count_returns_resource_full",
         (status == NTOS_ERR_RESOURCE_FULL) && (sem.count == 1U));
 
-    bsp_uart_write_string("[9A] chang09_semaphore: xong\r\n");
+    bsp_uart_write_string("[semaphore] test_semaphore: xong\r\n");
 
     for (;;)
     {
