@@ -130,16 +130,18 @@ mục `X/` **song song bên trong thư mục build** (`build/X/`), chứa
 trong `X/CMakeLists.txt`. Ví dụ sau khi configure mặc định (`NTOS_BUILD_TESTS=ON`):
 
 ```
-build/tests/target/
+build/tests/stack/
 ├── Makefile
 ├── CMakeFiles/
 │   ├── chang02_initial_stack.dir/   <- .o trung gian
-│   ├── chang03_first_task.dir/
-│   └── ...
+│   └── chang10_stack_diagnostics.dir/
 ├── chang02_initial_stack            <- ELF, không đuôi mở rộng
-├── chang03_first_task
-└── ...
+└── chang10_stack_diagnostics
 ```
+
+(mỗi thư mục con của `tests/` — `stack/`, `task/`, `scheduler/`, `queue/`,
+`semaphore/`, `stress/`, `integration/` — sinh ra một `build/tests/<tên>/`
+tương ứng, theo đúng nguyên tắc build-tree mirror source-tree ở trên).
 
 Đây cũng là lý do `scripts/build.sh` tìm ELF bằng
 `find build -type f -name "$TARGET"`: tên file trùng khớp tên target.

@@ -1,5 +1,5 @@
 /**
- * @file chang02_initial_stack.c
+ * @file initial_stack.c
  * @brief Test đơn giản cho ntos_task_create_static().
  */
 

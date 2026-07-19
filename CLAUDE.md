@@ -26,7 +26,9 @@ viết file này:
 - `include/ntos/*.h` đã khai báo public API (task/sem/queue) nhưng struct TCB
   thật trong code chưa khớp hết với bản thiết kế trong `ntos_design.md`.
 - `examples/01`–`07` dùng API tương lai của kernel; chưa chạy được vì kernel
-  chưa implement. `tests/host` và `tests/target` phần lớn vẫn là placeholder.
+  chưa implement. `tests/host` vẫn là placeholder (chờ stage 8); các thư mục
+  test theo subsystem dưới `tests/` (xem bên dưới) là regression test thật,
+  build sạch trên target.
 - Không có git tag nào trong repo. Xem `docs/ntos_roadmap.md#b-bảng-tiến-độ`
   để biết trạng thái từng chặng, và cập nhật bảng đó khi code thay đổi.
 
@@ -41,7 +43,13 @@ bsp/stm32f10x/       Board support: clock, gpio, uart, exti, startup, linker.
 cmsis/              Vendor: CMSIS core + STM32F10x device headers (header-only).
 examples/           Firmware có dùng kernel/port (một khi kernel xong).
 tests/host/         Test chạy trên host (pure C, không cần board).
-tests/target/       Test chạy trên board thật.
+tests/stack/        Test chạy trên board thật — initial stack, diagnostics.
+tests/task/         Test chạy trên board thật — first task, delay.
+tests/scheduler/    Test chạy trên board thật — cooperative/preemptive/priority/ready-list.
+tests/queue/        Test chạy trên board thật — queue + queue ISR.
+tests/semaphore/    Test chạy trên board thật — semaphore + semaphore ISR.
+tests/stress/       Test chạy trên board thật — stress toàn hệ thống.
+tests/integration/  Test chạy trên board thật — demo tích hợp.
 docs/               Tài liệu thiết kế + roadmap.
 scripts/            build.sh, flash.sh, clean.sh.
 tools/               Cấu hình OpenOCD, GDB.
@@ -75,7 +83,7 @@ cmake --build build --target example_basic_tasks
 ```
 
 Target firmware mới luôn khai báo qua `ntos_add_firmware()` trong
-`cmake/ntos_firmware.cmake` (xem `tests/target/CMakeLists.txt` để làm ví dụ),
+`cmake/ntos_firmware.cmake` (xem `tests/stack/CMakeLists.txt` để làm ví dụ),
 không tự gọi `add_executable` tay.
 
 ## Ràng buộc thiết kế cốt lõi (đọc kỹ trước khi sửa kernel/port)
