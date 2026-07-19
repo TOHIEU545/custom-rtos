@@ -72,6 +72,13 @@ static void print_stack_info(const char *title, const ntos_task_stack_info_t *in
     bsp_uart_write_string(info->guard_intact ? "intact\r\n" : "CORRUPTED\r\n");
 }
 
+static void uart_write_pass_fail(const char *name, bool ok)
+{
+    bsp_uart_write_string("[stack] ");
+    bsp_uart_write_string(name);
+    bsp_uart_write_string(ok ? ": PASS\r\n" : ": FAIL\r\n");
+}
+
 /*
  * This function deliberately uses local stack memory so the worker reaches
  * a deeper stack level.
@@ -141,13 +148,13 @@ static void conductor_task(void *argument)
         print_stack_info("Worker after consuming stack", &info_after_worker);
     }
 
-    bsp_uart_write_string("\r\nWorker finished: ");
-    bsp_uart_write_string(g_worker_finished ? "yes\r\n" : "no\r\n");
-
-    bsp_uart_write_string("\r\nObserve:\r\n"
-                          "- Maximum used should increase.\r\n"
-                          "- Never used should decrease.\r\n"
-                          "- Guard should remain intact.\r\n");
+    bsp_uart_write_string("\r\n");
+    uart_write_pass_fail("worker_finished", g_worker_finished);
+    uart_write_pass_fail("high_water_mark_increased",
+        info_after_worker.high_water_mark_words > info_before_worker.high_water_mark_words);
+    uart_write_pass_fail("untouched_words_decreased",
+        info_after_worker.untouched_words < info_before_worker.untouched_words);
+    uart_write_pass_fail("guard_still_intact", info_after_worker.guard_intact);
 
     for (;;)
     {

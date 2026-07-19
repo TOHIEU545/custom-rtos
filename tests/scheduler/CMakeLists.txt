@@ -12,8 +12,12 @@ ntos_add_firmware(test_scheduler_priority
     MAIN ${CMAKE_CURRENT_SOURCE_DIR}/priority.c
 )
 
-ntos_add_firmware(test_scheduler_ready_list
-    MAIN ${CMAKE_CURRENT_SOURCE_DIR}/ready_list.c
+ntos_add_firmware(test_scheduler_ready_list_priority
+    MAIN ${CMAKE_CURRENT_SOURCE_DIR}/ready_list_priority.c
+)
+
+ntos_add_firmware(test_scheduler_ready_list_blocking
+    MAIN ${CMAKE_CURRENT_SOURCE_DIR}/ready_list_blocking.c
 )
 # TEST-ONLY: doc ready_item.container va ready_lists[] truc tiep (xem NTOS_CODING_CONVENTION.md muc 2.4).
-target_include_directories(test_scheduler_ready_list PRIVATE ${CMAKE_SOURCE_DIR}/kernel/internal)
+target_include_directories(test_scheduler_ready_list_blocking PRIVATE ${CMAKE_SOURCE_DIR}/kernel/internal)
