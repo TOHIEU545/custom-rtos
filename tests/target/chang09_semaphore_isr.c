@@ -86,7 +86,7 @@ static void task_low(void *argument)
      * kỳ task nào chờ - ntos_sem_give_from_isr() sẽ chỉ tăng count thay vì
      * đánh thức ai, và lần bấm đó coi như bị bỏ lỡ khỏi kịch bản test thay vì
      * được quan sát như một sự kiện preempt thật. */
-    bsp_exti_config(BOARD_KEY2_PORT, BOARD_KEY2_PIN, BSP_EXTI_TRIGGER_FALLING);
+    bsp_exti_config(BOARD_KEY0_PORT, BOARD_KEY0_PIN, BSP_EXTI_TRIGGER_FALLING);
 
     /* Không delay: task này phải luôn ở trạng thái RUNNING để việc bấm nút
      * chứng minh được task_high thật sự preempt một task đang chạy, không
@@ -107,7 +107,7 @@ void EXTI1_IRQHandler(void)
 {
     bool higher_priority_task_woken = false;
 
-    bsp_exti_clear_pending(BOARD_KEY2_PIN);
+    bsp_exti_clear_pending(BOARD_KEY0_PIN);
 
     (void)ntos_sem_give_from_isr(&sem, &higher_priority_task_woken);
     g_higher_priority_task_woken = higher_priority_task_woken;
