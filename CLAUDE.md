@@ -6,7 +6,6 @@
 STM32F103 / ARM Cortex-M3, mục tiêu là hiểu bản chất task, context switch,
 scheduler, blocking và IPC, không phải để dùng production. Tài liệu gốc:
 
-- `docs/ntos_roadmap.md` — lộ trình phát triển theo từng chặng (0–10), có mục lục.
 - `docs/ntos_design.md` — "hợp đồng kiến trúc": TCB, state machine, invariant, API draft.
 - `docs/cmake_flow.md` — cách CMake thật của project chạy, target nào phụ thuộc target nào.
 - `AGENTS.md` — phạm vi code chính thức và các ràng buộc thiết kế cốt lõi.
@@ -29,8 +28,7 @@ viết file này:
   chưa implement. `tests/host` vẫn là placeholder (chờ stage 8); các thư mục
   test theo subsystem dưới `tests/` (xem bên dưới) là regression test thật,
   build sạch trên target.
-- Không có git tag nào trong repo. Xem `docs/ntos_roadmap.md#b-bảng-tiến-độ`
-  để biết trạng thái từng chặng, và cập nhật bảng đó khi code thay đổi.
+- Không có git tag nào trong repo.
 
 ## Cấu trúc thư mục
 
@@ -50,7 +48,7 @@ tests/queue/        Test chạy trên board thật — queue + queue ISR.
 tests/semaphore/    Test chạy trên board thật — semaphore + semaphore ISR.
 tests/stress/       Test chạy trên board thật — stress toàn hệ thống.
 tests/integration/  Test chạy trên board thật — demo tích hợp.
-docs/               Tài liệu thiết kế + roadmap.
+docs/               Tài liệu thiết kế + coding convention.
 scripts/            build.sh, flash.sh, clean.sh.
 tools/               Cấu hình OpenOCD, GDB.
 cmake/               Toolchain file, compiler options, hàm ntos_add_firmware().
@@ -95,8 +93,7 @@ không tự gọi `add_executable` tay.
 - ISR chỉ dùng API hậu tố `_from_isr`, không block, không gọi heap.
 - Ưu tiên: đúng bản chất > dễ hiểu > dễ debug bằng GDB > không phụ thuộc heap.
   Không tối ưu cycle, không thêm feature "vì RTOS khác có".
-- Mọi thay đổi kiến trúc phải phản ánh lại vào `docs/ntos_design.md`, mọi
-  tiến độ chặng phải phản ánh lại vào `docs/ntos_roadmap.md`.
+- Mọi thay đổi kiến trúc phải phản ánh lại vào `docs/ntos_design.md`.
 
 ## Khi làm việc trong repo này
 
