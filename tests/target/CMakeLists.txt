@@ -50,4 +50,16 @@ ntos_add_firmware(chang09_queue_isr
     MAIN ${CMAKE_CURRENT_SOURCE_DIR}/chang09_queue_isr.c
 )
 
+ntos_add_firmware(chang10_stack_diagnostics
+    MAIN ${CMAKE_CURRENT_SOURCE_DIR}/chang10_stack_diagnostics.c
+)
+
+ntos_add_firmware(chang10_stress
+    MAIN ${CMAKE_CURRENT_SOURCE_DIR}/chang10_stress.c
+)
+
+ntos_add_firmware(chang10_integration_demo
+    MAIN ${CMAKE_CURRENT_SOURCE_DIR}/chang10_integration_demo.c
+)
+
 # Cac target test con lai se duoc them khi chang tuong ung bat dau.

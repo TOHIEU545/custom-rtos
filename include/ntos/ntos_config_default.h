@@ -9,7 +9,7 @@
 #define NTOS_TICK_RATE_HZ 1000U
 
 /** @brief Số task tĩnh tối đa hệ thống hỗ trợ. */
-#define NTOS_MAX_TASKS 8U
+#define NTOS_MAX_TASKS 9U
 
 /** @brief Số mức priority hợp lệ (0..NTOS_MAX_PRIORITIES-1, số càng lớn càng ưu tiên). */
 #define NTOS_MAX_PRIORITIES 8U

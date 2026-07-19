@@ -73,6 +73,10 @@ void ntos_start(ntos_tcb_t *first_task_tcb)
     /* Kiểm tra first_task đang nằm đúng ready_lists[priority] của nó - invariant
      * RUNNABLE task phải có ready_item.container trỏ đúng list. */
     NTOS_ASSERT(first_task_tcb->ready_item.container == &ready_lists[first_task_tcb->priority]);
+    /* RUNNING task không được mang theo dấu vết của một lần BLOCKED nào - xem
+     * cùng invariant được assert lại ở ntos_scheduler_select_next(). */
+    NTOS_ASSERT(first_task_tcb->block_reason == NTOS_BLOCK_NONE);
+    NTOS_ASSERT(first_task_tcb->wait_item.container == NULL);
 
     first_task_tcb->state = NTOS_TASK_RUNNING;
     ntos_current_tcb = first_task_tcb;
@@ -130,6 +134,11 @@ void ntos_tick_handler(void)
             (task_table[i]->block_reason == NTOS_BLOCK_DELAY) &&
             ntos_tick_reached(ntos_tick_count, task_table[i]->wake_tick))
         {
+            /* Task BLOCKED vì delay không được đồng thời có wait_item còn gắn
+             * vào wait list nào (semaphore/queue). Assert lại đúng tại điểm wake để
+             * bắt sớm nếu có ai vô tình phá lại bất biến này. */
+            NTOS_ASSERT(task_table[i]->wait_item.container == NULL);
+
             task_table[i]->block_reason = NTOS_BLOCK_NONE;
             task_table[i]->state = NTOS_TASK_READY;
             ntos_list_push_back(&ready_lists[task_table[i]->priority], &task_table[i]->ready_item);
@@ -163,6 +172,14 @@ void ntos_scheduler_register_task(ntos_tcb_t *tcb)
 
     /* Task mới tạo luôn READY - đưa vào đúng ready_lists[priority]. */
     ntos_list_push_back(&ready_lists[tcb->priority], &tcb->ready_item);
+
+    /* Task vừa vào RUNNABLE lần đầu phải thoả đúng invariant READY: nằm đúng
+     * ready list theo priority, không mang bất kỳ dấu vết BLOCKED nào (chưa
+     * task nào từng block trước khi được đăng ký ở đây, nhưng assert lại cho
+     * chắc thay vì ngầm định). */
+    NTOS_ASSERT(tcb->ready_item.container == &ready_lists[tcb->priority]);
+    NTOS_ASSERT(tcb->block_reason == NTOS_BLOCK_NONE);
+    NTOS_ASSERT(tcb->wait_item.container == NULL);
 }
 
 void ntos_scheduler_select_next(void)
@@ -205,6 +222,16 @@ void ntos_scheduler_select_next(void)
     NTOS_ASSERT(selected != NULL);
     NTOS_ASSERT(selected->state == NTOS_TASK_READY);
     NTOS_ASSERT(selected->ready_item.container == &ready_lists[selected->priority]);
+    /* RUNNING/READY không được mang theo dấu vết BLOCKED - nếu block_reason
+     * còn khác NONE ở đây nghĩa là một đường wake nào đó quên reset field này
+     * trước khi đưa task vào ready_lists[]. */
+    NTOS_ASSERT(selected->block_reason == NTOS_BLOCK_NONE);
+    /* stack_pointer phải luôn nằm trong đúng vùng stack của chính task đó -
+     * giống hệt assert đã có ở ntos_start() cho first task, áp dụng lại mỗi
+     * lần context switch để phát hiện sớm stack overflow/TCB hỏng thay vì để
+     * PendSV restore một context nằm ngoài vùng nhớ hợp lệ. */
+    NTOS_ASSERT(selected->stack_pointer >= selected->stack_low);
+    NTOS_ASSERT(selected->stack_pointer < selected->stack_high);
 
     ntos_current_tcb = selected;
     ntos_current_tcb->state = NTOS_TASK_RUNNING;

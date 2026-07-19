@@ -1317,6 +1317,47 @@ loop forever
 - High-water mark.
 - Optional PSP bounds in PendSV debug build.
 
+> **Trạng thái thực tế (Chặng 10):** API công khai tại `include/ntos/ntos_stack.h`,
+> implementation `kernel/ntos_stack.c` (thêm vào `kernel/CMakeLists.txt`).
+> `NTOS_STACK_FILL_PATTERN` (`0xA5A5A5A5U`) thay thế literal từng có sẵn trong
+> `kernel/ntos_task.c` - dùng chung một chỗ để `ntos_stack.c` và test đều tham
+> chiếu đúng một pattern.
+>
+> `ntos_task_stack_get_info(tcb, info)`: quét `stack_low[]` từ đáy lên, đếm số
+> word liên tiếp đầu tiên còn giữ đúng pattern (`untouched_words`), suy ra
+> `high_water_mark_words = stack_words - untouched_words`. **Bán kính ảnh
+> hưởng:** đây là mức dùng CAO NHẤT từng quan sát được (peak), KHÔNG phải mức
+> đang dùng tại thời điểm gọi - một task có thể đang dùng ít hơn ngay lúc đọc vì
+> các hàm sâu hơn đã return (dữ liệu cũ vẫn còn nguyên trong các word đó, không
+> bị ghi lại 0xA5). O(stack_words) - **cố tình không** gọi trong tick
+> handler/PendSV, chỉ dùng khi cần (debug/test), đúng yêu cầu Chặng 10.
+> `guard_intact` chỉ được tính khi `NTOS_ENABLE_STACK_GUARD` bật (trước Chặng 10,
+> flag này khai báo sẵn trong `ntos_config_default.h` nhưng chưa được code nào
+> dùng tới - Chặng 10 là lần đầu wire nó vào logic thật); guard chính là word
+> đáy cùng (`stack_low[0]`) - nếu `untouched_words == 0` nghĩa là stack đã tràn
+> tới tận đáy, ghi đè cả word cảnh báo.
+>
+> `ntos_task_stack_guard_ok(tcb)`: kiểm tra nhanh O(1) riêng `stack_low[0]`,
+> không quét toàn bộ - dùng khi chỉ cần biết "còn ổn không" mà không cần số
+> liệu high-water mark đầy đủ.
+>
+> Assert/validate: `tcb`/`info` NULL trả `NTOS_ERR_INVALID_ARGUMENT` (API công
+> khai, lỗi gọi hàm hợp lệ để trả mã lỗi thay vì assert); `tcb->state ==
+> NTOS_TASK_UNUSED` (chưa từng tạo) trả `NTOS_ERR_INVALID_STATE`; bounds thật sự
+> của bộ nhớ (`stack_pointer` nằm ngoài `[stack_low, stack_high)`, hoặc
+> `stack_high - stack_low != stack_words`) dùng `NTOS_ASSERT` vì đó là dấu hiệu
+> TCB/stack đã bị hỏng - một bug kernel thật, không phải lỗi gọi API của
+> caller. `NTOS_ENABLE_STACK_FILL == 0` khiến cả hai hàm từ chối luôn (trả
+> `NTOS_ERR_INVALID_STATE`/`false`) vì không có pattern nào để quét.
+>
+> Test: `tests/target/chang10_stack_diagnostics.c` - xác nhận task mới tạo
+> (chưa từng chạy) đã báo cáo `high_water_mark_words == 16` (đúng kích thước
+> initial frame dựng sẵn lúc tạo, xem §9.3), vùng dưới initial frame vẫn giữ
+> nguyên pattern khi đọc thẳng mảng stack từ `main()` (trước `ntos_start()`);
+> sau khi task chạy và cố ý dùng thêm một khoảng stack biết trước qua local
+> array, high-water mark tăng đúng như kỳ vọng và guard vẫn nguyên (không cố
+> tình overflow thật).
+
 ---
 
 # 20. Public API draft
@@ -1452,6 +1493,34 @@ Lợi ích của chia hai giai đoạn:
 - Current task không NULL sau scheduler start.
 - Idle task luôn tồn tại.
 ```
+
+> **Trạng thái thực tế (Chặng 10 - assert bổ sung, không đổi behavior):** Rà lại
+> theo đúng bảng ở §8.3/§12.3/§12.2, `kernel/ntos_kernel.c` được bổ sung
+> `NTOS_ASSERT` tại đúng các điểm chuyển state/list membership - không có nhánh
+> logic nào đổi, chỉ thêm điều kiện dừng sớm nếu invariant bị vi phạm:
+>
+> - `ntos_scheduler_register_task()`: sau khi push task mới vào
+>   `ready_lists[priority]`, assert `ready_item.container` đúng list,
+>   `block_reason == NTOS_BLOCK_NONE`, `wait_item.container == NULL` - task vừa
+>   vào RUNNABLE lần đầu phải sạch, không mang dấu vết BLOCKED nào.
+> - `ntos_tick_handler()`: ngay trước khi đưa một task delay-expired trở lại
+>   `ready_lists[]`, assert `wait_item.container == NULL` - đây là **đúng bất
+>   biến mà bug lịch sử đã vi phạm** (xem ghi chú bugfix `block_reason` ở §13.2):
+>   một task BLOCKED vì delay tuyệt đối không được đồng thời còn nằm trong wait
+>   list của semaphore/queue nào.
+> - `ntos_scheduler_select_next()`: sau khi chọn `selected`, assert thêm
+>   `selected->block_reason == NTOS_BLOCK_NONE` (RUNNING/READY không được mang
+>   dấu vết BLOCKED) và `stack_pointer` nằm trong `[stack_low, stack_high)` -
+>   mirror đúng assert đã có sẵn ở `ntos_start()` cho first task, áp dụng lại
+>   mỗi lần context switch để phát hiện sớm stack overflow/TCB hỏng.
+> - `ntos_start()`: bổ sung 2 assert tương tự (`block_reason == NONE`,
+>   `wait_item.container == NULL`) cho first task, để first task và mọi task
+>   chọn sau đó qua `ntos_scheduler_select_next()` cùng chịu một tiêu chuẩn.
+>
+> Không đổi ready list architecture, không đổi PendSV/SVC, không đổi semantics
+> semaphore/queue - đúng phạm vi Chặng 10 (§10 phần G AGENTS/roadmap: chỉ
+> refactor/siết chặt khi có invariant đang thiếu assert, không viết lại kiến
+> trúc).
 
 ## 23.2. List invariants
 

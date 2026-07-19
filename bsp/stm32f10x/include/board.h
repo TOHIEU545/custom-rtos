@@ -23,9 +23,9 @@
 #define BOARD_KEY1_PORT BSP_GPIO_PORT_C
 #define BOARD_KEY1_PIN 13U
 
-/** @brief Key2: GPIO port C, pin 1. Active-low (đọc 0 khi nhấn). */
-#define BOARD_KEY2_PORT BSP_GPIO_PORT_C
-#define BOARD_KEY2_PIN 1U
+/** @brief Key0: GPIO port C, pin 1. Active-low (đọc 0 khi nhấn). */
+#define BOARD_KEY0_PORT BSP_GPIO_PORT_C
+#define BOARD_KEY0_PIN 1U
 
 /** @brief LED trên board. */
 typedef enum
@@ -37,8 +37,8 @@ typedef enum
 /** @brief Nút nhấn trên board. */
 typedef enum
 {
+    BOARD_KEY0,
     BOARD_KEY1,
-    BOARD_KEY2,
 } board_key_t;
 
 /** @brief Cấu hình các chân/ngoại vi cố định của board (2 LED, 2 nút nhấn, UART1). */

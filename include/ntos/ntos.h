@@ -8,6 +8,7 @@
 
 #include <ntos/ntos_queue.h>
 #include <ntos/ntos_sem.h>
+#include <ntos/ntos_stack.h>
 #include <ntos/ntos_task.h>
 
 /**
@@ -24,4 +25,5 @@ void ntos_start(ntos_tcb_t *first_task_tcb) __attribute__((noreturn));
 
 /** @brief Đọc số tick hệ thống hiện tại, tăng mỗi lần SysTick fire. */
 ntos_tick_t ntos_tick_get(void);
+
 #endif

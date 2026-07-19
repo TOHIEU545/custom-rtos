@@ -4,6 +4,7 @@
  */
 #include <ntos/ntos.h>
 #include <ntos/ntos_config_default.h>
+#include <ntos/ntos_stack.h>
 #include <ntos/ntos_task.h>
 
 #include "ntos_assert_internal.h"
@@ -57,10 +58,11 @@ ntos_status_t ntos_task_create_static(ntos_tcb_t *tcb, const char *name, ntos_ta
     }
 
 #if NTOS_ENABLE_STACK_FILL
-    /* Fill 0xA5 toàn bộ stack để sau này đo được high-water mark. */
+    /* Fill pattern toàn bộ stack để sau này ntos_task_stack_get_info()
+     * (kernel/ntos_stack.c) đo được high-water mark/guard. */
     for (size_t i = 0; i < stack_words; ++i)
     {
-        stack[i] = 0xA5A5A5A5U;
+        stack[i] = NTOS_STACK_FILL_PATTERN;
     }
 #endif
 

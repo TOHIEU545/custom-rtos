@@ -22,9 +22,9 @@ static void board_key_port_pin(board_key_t key, bsp_gpio_port_t *port, uint8_t *
 {
     switch (key)
     {
-    case BOARD_KEY2:
-        *port = BOARD_KEY2_PORT;
-        *pin = BOARD_KEY2_PIN;
+    case BOARD_KEY0:
+        *port = BOARD_KEY0_PORT;
+        *pin = BOARD_KEY0_PIN;
         break;
     case BOARD_KEY1:
     default:
@@ -39,7 +39,7 @@ void board_init(void)
     bsp_gpio_config(BOARD_LED_D0_PORT, BOARD_LED_D0_PIN, BSP_GPIO_MODE_OUTPUT_PUSH_PULL);
     bsp_gpio_config(BOARD_LED_D1_PORT, BOARD_LED_D1_PIN, BSP_GPIO_MODE_OUTPUT_PUSH_PULL);
     bsp_gpio_config(BOARD_KEY1_PORT, BOARD_KEY1_PIN, BSP_GPIO_MODE_INPUT_PULLUP);
-    bsp_gpio_config(BOARD_KEY2_PORT, BOARD_KEY2_PIN, BSP_GPIO_MODE_INPUT_PULLUP);
+    bsp_gpio_config(BOARD_KEY0_PORT, BOARD_KEY0_PIN, BSP_GPIO_MODE_INPUT_PULLUP);
     bsp_uart_init(BOARD_UART_BAUDRATE);
 }
 
