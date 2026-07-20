@@ -15,19 +15,18 @@ scheduler, blocking và IPC, không phải để dùng production. Tài liệu g
 Đừng tin vào tên thư mục hay comment cũ — luôn kiểm tra lại code. Tại thời điểm
 viết file này:
 
-- **Bare-metal foundation (CHẶNG 0) và exception model (CHẶNG 1): đã xong.**
-  Build/flash/debug qua CMake chạy được; code lab + báo cáo chi tiết
-  (`cortex_m3_exception_msp_psp_svc_report.md`) không còn nằm trên main-track,
-  đã chuyển sang branch `learning/cortex-m3` (xem mục "Learning material" bên dưới).
-- **Kernel (`kernel/*.c`) và port (`port/cortex_m3/*.c`) hiện toàn bộ là stub**
-  (`/* TODO(stage N). */`), chưa có implementation thật: chưa có task, chưa
-  scheduler, chưa context switch. `ntos_start()` chỉ là vòng lặp rỗng.
-- `include/ntos/*.h` đã khai báo public API (task/sem/queue) nhưng struct TCB
-  thật trong code chưa khớp hết với bản thiết kế trong `ntos_design.md`.
+- **Kernel (`kernel/*.c`) và port (`port/cortex_m3/*.c`) đã implement đầy đủ**:
+  task tĩnh, scheduler fixed-priority + ready list, context switch qua
+  SVC/PendSV, tick/delay, semaphore, queue, stack diagnostics. Bare-metal
+  foundation và exception model (labs cũ) đã xong từ trước, code lab + báo cáo
+  chi tiết không còn nằm trên main-track, đã chuyển sang branch
+  `learning/cortex-m3` (xem mục "Learning material" bên dưới).
+- `include/ntos/*.h` khai báo public API (task/sem/queue/stack) khớp với
+  implementation thật hiện tại.
 - `examples/` gồm 2 demo tối giản (`01_scheduler_demo`, `02_ipc_demo`), build
-  được qua `-DNTOS_BUILD_EXAMPLES=ON`. `tests/host` vẫn là placeholder (chờ
-  stage 8); các thư mục test theo subsystem dưới `tests/` (xem bên dưới) là
-  regression test thật, build sạch trên target.
+  được qua `-DNTOS_BUILD_EXAMPLES=ON`. `tests/host` vẫn là placeholder (host
+  unit test chưa được ưu tiên); các thư mục test theo subsystem dưới `tests/`
+  (xem bên dưới) là regression test thật, build sạch trên target.
 - Không có git tag nào trong repo.
 
 ## Cấu trúc thư mục

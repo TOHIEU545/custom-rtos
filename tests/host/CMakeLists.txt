@@ -1,1 +1,1 @@
-# Add a host-only build when stage 8 begins.
+# Add a host-only build once host-side unit tests are prioritized.

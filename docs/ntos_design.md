@@ -91,14 +91,16 @@ Theo thứ tự:
 
 ```text
 ntos/
-├── include/
-│   ├── ntos.h
-│   ├── ntos_config.h
+├── include/ntos/
+│   ├── ntos.h                 (umbrella: queue + sem + stack + task)
+│   ├── ntos_config_default.h
 │   ├── ntos_types.h
+│   ├── ntos_status.h
+│   ├── ntos_list.h
 │   ├── ntos_task.h
 │   ├── ntos_sem.h
 │   ├── ntos_queue.h
-│   └── ntos_status.h
+│   └── ntos_stack.h
 │
 ├── kernel/
 │   ├── ntos_kernel.c
@@ -106,11 +108,13 @@ ntos/
 │   ├── ntos_list.c
 │   ├── ntos_sem.c
 │   ├── ntos_queue.c
+│   ├── ntos_stack.c
 │   ├── ntos_assert.c
 │   └── internal/
 │       ├── ntos_kernel_internal.h
 │       ├── ntos_task_internal.h
-│       └── ntos_list_internal.h
+│       ├── ntos_list_internal.h
+│       └── ntos_assert_internal.h
 │
 ├── port/
 │   └── cortex_m3/
@@ -119,17 +123,21 @@ ntos/
 │       └── ntos_port_asm.S
 │
 ├── bsp/
-│   └── stm32f103/
-│       ├── startup_stm32f103.S
-│       ├── linker.ld
-│       ├── system_stm32f103.c
-│       ├── gpio.c
-│       ├── uart.c
-│       └── board.h
+│   └── stm32f10x/
+│       ├── include/       (board.h, gpio.h, uart.h, exti.h, rcc.h)
+│       ├── internal/
+│       ├── src/            (board.c, gpio.c, uart.c, exti.c, rcc.c)
+│       ├── startup/
+│       ├── system/
+│       └── linker/
 │
+├── cmsis/
 ├── examples/
 ├── tests/
-└── docs/
+├── docs/
+├── cmake/
+├── scripts/
+└── tools/
 ```
 
 ---
@@ -269,19 +277,17 @@ Lý do:
 
 # 6. Cấu hình compile-time
 
-`ntos_config.h`:
+`include/ntos/ntos_config_default.h`:
 
 ```c
-#define NTOS_TICK_RATE_HZ          1000U
-#define NTOS_MAX_TASKS             8U
-#define NTOS_MAX_PRIORITIES        8U
-#define NTOS_IDLE_STACK_WORDS      128U
+#define NTOS_TICK_RATE_HZ      1000U
+#define NTOS_MAX_TASKS         9U
+#define NTOS_MAX_PRIORITIES    8U
+#define NTOS_IDLE_STACK_WORDS  128U
 
-#define NTOS_ENABLE_ASSERT         1
-#define NTOS_ENABLE_STACK_FILL     1
-#define NTOS_ENABLE_STACK_GUARD    1
-#define NTOS_ENABLE_WFI_IDLE       0
-#define NTOS_ENABLE_PRIORITY_MAP   0
+#define NTOS_ENABLE_ASSERT       1
+#define NTOS_ENABLE_STACK_FILL   1
+#define NTOS_ENABLE_STACK_GUARD  1
 ```
 
 Quy tắc:
@@ -810,11 +816,12 @@ delay <= INT32_MAX ticks
 
 > **Trạng thái thực tế (Chặng 7):** `ntos_tick_reached()` triển khai đúng như
 > trên, đặt tại kernel/ntos_kernel.c và export qua `kernel/internal/ntos_kernel_internal.h`
-> (không `static`) chỉ để test gọi trực tiếp với giá trị biên gần `UINT32_MAX`
-> (xem `tests/target/test_tick_overflow.c`) - tránh phải chờ tick thật sự tràn
-> số (~49 ngày ở 1 kHz). `ntos_delay()` **assert** nếu `ticks > INT32_MAX` (chữ
-> ký hàm là `void`, không có chỗ trả lỗi nên chọn assert thay vì im lặng cắt bớt
-> giá trị hoặc chỉ ghi tài liệu suông).
+> (không `static`) để có thể gọi trực tiếp với giá trị biên gần `UINT32_MAX` -
+> tránh phải chờ tick thật sự tràn số (~49 ngày ở 1 kHz). Không có test tự động
+> riêng cho trường hợp biên này (chấp nhận rủi ro, hàm vẫn đúng theo code nhưng
+> chưa có bằng chứng test xác minh). `ntos_delay()` **assert** nếu
+> `ticks > INT32_MAX` (chữ ký hàm là `void`, không có chỗ trả lỗi nên chọn
+> assert thay vì im lặng cắt bớt giá trị hoặc chỉ ghi tài liệu suông).
 
 ## 13.5. Delay zero
 
@@ -1160,8 +1167,8 @@ Không bắt buộc:
 > **Trạng thái thực tế (Chặng 9B):** Đã làm cả hai mục "không bắt buộc":
 > blocking send (thay vì chỉ non-blocking) vì implementation đối xứng và đơn
 > giản, không tốn thêm abstraction nào so với blocking receive đã có. Không
-> làm `receive_from_isr` (đúng scope §19 roadmap - ISR chỉ gửi, không có nhu
-> cầu ISR nhận trong bản học tập này), không queue peek/set, không zero-copy,
+> làm `receive_from_isr` (ISR chỉ gửi, không có nhu cầu ISR nhận trong bản học
+> tập này), không queue peek/set, không zero-copy,
 > không variable-size message, không finite timeout (giống semaphore Chặng 9A,
 > chỉ `NTOS_NO_WAIT`/`NTOS_WAIT_FOREVER`).
 
@@ -1518,9 +1525,8 @@ Lợi ích của chia hai giai đoạn:
 >   chọn sau đó qua `ntos_scheduler_select_next()` cùng chịu một tiêu chuẩn.
 >
 > Không đổi ready list architecture, không đổi PendSV/SVC, không đổi semantics
-> semaphore/queue - đúng phạm vi Chặng 10 (§10 phần G AGENTS/roadmap: chỉ
-> refactor/siết chặt khi có invariant đang thiếu assert, không viết lại kiến
-> trúc).
+> semaphore/queue - đúng phạm vi Chặng 10 (chỉ refactor/siết chặt khi có
+> invariant đang thiếu assert, không viết lại kiến trúc).
 
 ## 23.2. List invariants
 

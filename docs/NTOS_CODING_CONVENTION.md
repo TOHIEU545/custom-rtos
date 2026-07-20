@@ -938,7 +938,7 @@ Không được:
 - Dùng malloc trong kernel core.
 - Save/restore context ngoài PendSV, trừ start first task bằng SVC.
 - Dùng busy-wait thay cho blocking khi feature blocking đã tồn tại.
-- Thêm feature ngoài roadmap hiện tại.
+- Thêm feature ngoài phạm vi thiết kế hiện tại (xem `ntos_design.md`).
 - Refactor lớn khi chưa có test bảo vệ.
 ```
 
