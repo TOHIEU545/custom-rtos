@@ -53,7 +53,8 @@ ntos_status_t ntos_task_stack_get_info(const ntos_tcb_t *tcb, ntos_task_stack_in
     /* Guard chỉ là word đáy cùng (index 0) - nếu nó đã bị ghi đè thì untouched == 0. */
     info->guard_intact = (untouched > 0U);
 #else
-    info->guard_intact = true; /* Guard checking tắt trong build này - không xác định, coi như OK. */
+    info->guard_intact =
+        true; /* Guard checking tắt trong build này - không xác định, coi như OK. */
 #endif
 
     return NTOS_OK;

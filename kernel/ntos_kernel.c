@@ -55,8 +55,8 @@ void ntos_init(void)
         ntos_list_init(&ready_lists[p]);
     }
 
-    status = ntos_task_create_static(&ntos_idle_task_tcb, "idle", ntos_idle_task,
-        NULL, ntos_idle_task_stack, NTOS_IDLE_STACK_WORDS, 0U);
+    status = ntos_task_create_static(&ntos_idle_task_tcb, "idle", ntos_idle_task, NULL,
+                                     ntos_idle_task_stack, NTOS_IDLE_STACK_WORDS, 0U);
 
     NTOS_ASSERT(status == NTOS_OK);
 }
@@ -84,7 +84,8 @@ void ntos_start(ntos_tcb_t *first_task_tcb)
     /* Priority PendSV/SysTick và SysTick timer phải sẵn sàng trước khi bật interrupt.
      * ntos_scheduler_running KHÔNG được đặt true ở đây - SVC_Handler (port) tự đặt
      * true ngay sau khi PSP của first task hợp lệ, để loại bỏ hoàn toàn khả năng
-     * SysTick pend PendSV trước khi PSP sẵn sàng (trỏ vào vùng nhớ ko hợp lệ) (vd. nếu SysTick xen vào giữa
+     * SysTick pend PendSV trước khi PSP sẵn sàng (trỏ vào vùng nhớ ko hợp lệ) (vd. nếu SysTick xen
+     * vào giữa
      * __enable_irq() và lệnh svc trong ntos_port_start_scheduler()). */
     ntos_port_start_tick();
 
@@ -146,7 +147,8 @@ void ntos_tick_handler(void)
             /* Assert wake xong task phải nằm đúng ready list theo priority của
              * nó - bắt lỗi nếu push_back sai chỗ hoặc priority bị đổi mà không
              * cập nhật ready list tương ứng. */
-            NTOS_ASSERT(task_table[i]->ready_item.container == &ready_lists[task_table[i]->priority]);
+            NTOS_ASSERT(task_table[i]->ready_item.container ==
+                        &ready_lists[task_table[i]->priority]);
         }
     }
 

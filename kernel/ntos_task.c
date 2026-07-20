@@ -162,7 +162,8 @@ void ntos_task_block_current(ntos_list_t *wait_list, ntos_block_reason_t reason)
     NTOS_ASSERT(ntos_current_tcb != NULL);
     NTOS_ASSERT(ntos_current_tcb->state == NTOS_TASK_RUNNING); /* chỉ gọi từ task context */
     NTOS_ASSERT(ntos_current_tcb != &ntos_idle_task_tcb);      /* idle không được block */
-    NTOS_ASSERT(ntos_current_tcb->wait_item.container == NULL); /* một wait_item chỉ ở tối đa một wait list */
+    NTOS_ASSERT(ntos_current_tcb->wait_item.container ==
+                NULL); /* một wait_item chỉ ở tối đa một wait list */
 
     /* Caller (ntos_sem_take()/ntos_queue_send()/ntos_queue_receive()) tự chịu
      * trách nhiệm giữ critical section quanh lời gọi này và tự
@@ -181,7 +182,8 @@ void ntos_task_make_ready(ntos_tcb_t *task)
 {
     NTOS_ASSERT(task != NULL);
     NTOS_ASSERT(task->state == NTOS_TASK_BLOCKED);
-    NTOS_ASSERT((task->block_reason != NTOS_BLOCK_NONE) && (task->block_reason != NTOS_BLOCK_DELAY));
+    NTOS_ASSERT((task->block_reason != NTOS_BLOCK_NONE) &&
+                (task->block_reason != NTOS_BLOCK_DELAY));
     NTOS_ASSERT(task->ready_item.container == NULL);
     NTOS_ASSERT(task->wait_item.container != NULL);
 

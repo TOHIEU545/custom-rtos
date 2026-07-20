@@ -41,7 +41,8 @@ static ntos_tcb_t *queue_select_highest_waiter(ntos_list_t *waiting_tasks)
     return highest;
 }
 
-ntos_status_t ntos_queue_init_static(ntos_queue_t *queue, void *storage, size_t item_size, size_t capacity)
+ntos_status_t ntos_queue_init_static(ntos_queue_t *queue, void *storage, size_t item_size,
+                                     size_t capacity)
 {
     if ((queue == NULL) || (storage == NULL) || (item_size == 0U) || (capacity == 0U))
     {
@@ -80,7 +81,8 @@ ntos_status_t ntos_queue_send(ntos_queue_t *queue, const void *item, ntos_tick_t
 
         if (queue->count < queue->capacity)
         {
-            (void)memcpy(&queue->storage[queue->write_index * queue->item_size], item, queue->item_size);
+            (void)memcpy(&queue->storage[queue->write_index * queue->item_size], item,
+                         queue->item_size);
             queue->write_index = (queue->write_index + 1U) % queue->capacity;
             queue->count++;
 
@@ -147,7 +149,8 @@ ntos_status_t ntos_queue_receive(ntos_queue_t *queue, void *item, ntos_tick_t ti
 
         if (queue->count > 0U)
         {
-            (void)memcpy(item, &queue->storage[queue->read_index * queue->item_size], queue->item_size);
+            (void)memcpy(item, &queue->storage[queue->read_index * queue->item_size],
+                         queue->item_size);
             queue->read_index = (queue->read_index + 1U) % queue->capacity;
             queue->count--;
 
@@ -191,7 +194,8 @@ ntos_status_t ntos_queue_receive(ntos_queue_t *queue, void *item, ntos_tick_t ti
     }
 }
 
-ntos_status_t ntos_queue_send_from_isr(ntos_queue_t *queue, const void *item, bool *higher_priority_task_woken)
+ntos_status_t ntos_queue_send_from_isr(ntos_queue_t *queue, const void *item,
+                                       bool *higher_priority_task_woken)
 {
     ntos_irq_state_t irq_state;
     ntos_status_t status;
@@ -207,7 +211,8 @@ ntos_status_t ntos_queue_send_from_isr(ntos_queue_t *queue, const void *item, bo
 
     if (queue->count < queue->capacity)
     {
-        (void)memcpy(&queue->storage[queue->write_index * queue->item_size], item, queue->item_size);
+        (void)memcpy(&queue->storage[queue->write_index * queue->item_size], item,
+                     queue->item_size);
         queue->write_index = (queue->write_index + 1U) % queue->capacity;
         queue->count++;
 

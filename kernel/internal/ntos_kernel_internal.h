@@ -11,7 +11,8 @@
 #include "ntos_list_internal.h"
 #include "ntos_task_internal.h"
 
-/** @brief TCB của task đang chạy hiện tại; NULL trước khi ntos_start() gán. Định nghĩa tại kernel/ntos_kernel.c. */
+/** @brief TCB của task đang chạy hiện tại; NULL trước khi ntos_start() gán. Định nghĩa tại
+ * kernel/ntos_kernel.c. */
 extern struct ntos_tcb *volatile ntos_current_tcb;
 
 /**
@@ -30,12 +31,13 @@ extern ntos_tcb_t ntos_idle_task_tcb;
 
 /**
  * @brief Ready list theo priority - ready_lists[p] chứa mọi task RUNNING/READY priority p.
- * @note Export chỉ để test kiểm tra invariant `tcb->ready_item.container == &ready_lists[priority]`.
- *       Định nghĩa (kích thước NTOS_MAX_PRIORITIES) tại kernel/ntos_kernel.c.
+ * @note Export chỉ để test kiểm tra invariant `tcb->ready_item.container ==
+ * &ready_lists[priority]`. Định nghĩa (kích thước NTOS_MAX_PRIORITIES) tại kernel/ntos_kernel.c.
  */
 extern ntos_list_t ready_lists[];
 
-/** @brief Đăng ký tcb vào task_table của scheduler, push item vào list. Gọi từ ntos_task_create_static(). */
+/** @brief Đăng ký tcb vào task_table của scheduler, push item vào list. Gọi từ
+ * ntos_task_create_static(). */
 void ntos_scheduler_register_task(ntos_tcb_t *tcb);
 
 /**

@@ -8,8 +8,8 @@ set(CMAKE_C_STANDARD_REQUIRED ON)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
 # Build groups.
-option(NTOS_BUILD_EXAMPLES "Build ntos examples" OFF)
-option(NTOS_BUILD_TESTS "Build tests" ON)
+option(NTOS_BUILD_EXAMPLES "Build ntos examples" ON)
+option(NTOS_BUILD_TESTS "Build tests" OFF)
 
 # Common CMake helpers.
 include(cmake/ntos_compiler_options.cmake)

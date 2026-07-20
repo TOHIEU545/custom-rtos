@@ -80,11 +80,11 @@ __attribute__((naked)) void PendSV_Handler(void)
 
         "ldr    r1, =ntos_current_tcb\n"                    /* r1 = &ntos_current_tcb (ntos_current_tcb có thể đã đổi sau hàm scheduler) */
         "ldr    r2, [r1]\n"                                 /* r2 = ntos_current_tcb = địa chỉ TCB */
-        "ldr    r0, [r2]\n"                             /* r0 = ntos_current_tcb->stack_pointer */
+        "ldr    r0, [r2]\n"                                 /* r0 = ntos_current_tcb->stack_pointer */
 
-        "ldmia  r0!, {r4-r11}\n"                        /* R4-R11 được restore  */
-        "msr    psp, r0\n"                              /* PSP = dau hardware frame (slot R0) */
-        "bx     lr\n"                                   /* exception return - CPU tu pop R0-R3,R12,LR,PC,xPSR */
+        "ldmia  r0!, {r4-r11}\n"                            /* R4-R11 được restore  */
+        "msr    psp, r0\n"                                  /* PSP = dau hardware frame (slot R0) */
+        "bx     lr\n"                                       /* exception return - CPU tu pop R0-R3,R12,LR,PC,xPSR */
     );
 }
 

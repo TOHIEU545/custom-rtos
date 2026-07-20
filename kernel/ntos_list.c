@@ -38,7 +38,7 @@ void ntos_list_push_back(ntos_list_t *list, ntos_list_item_t *item)
 
     NTOS_ASSERT(list != NULL);
     NTOS_ASSERT(item != NULL);
-    NTOS_ASSERT(item != &list->end);   /* không được chèn sentinel như item thường */
+    NTOS_ASSERT(item != &list->end);      /* không được chèn sentinel như item thường */
     NTOS_ASSERT(item->container == NULL); /* không được chèn trùng (double insert) */
 
     /* Chèn item vào ngay trước sentinel - tức cuối danh sách các item thực. */
@@ -48,7 +48,7 @@ void ntos_list_push_back(ntos_list_t *list, ntos_list_item_t *item)
     item->previous = last;
 
     last->next = item;
-    
+
     list->end.previous = item;
 
     item->container = list;
@@ -60,7 +60,8 @@ void ntos_list_remove(ntos_list_item_t *item)
     ntos_list_t *list;
 
     NTOS_ASSERT(item != NULL);
-    NTOS_ASSERT(item->container != NULL); /* không được gỡ trùng / gỡ item chưa nằm trong list nào */
+    NTOS_ASSERT(item->container !=
+                NULL); /* không được gỡ trùng / gỡ item chưa nằm trong list nào */
 
     list = item->container;
     NTOS_ASSERT(item != &list->end); /* không được gỡ sentinel */
