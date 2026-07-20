@@ -24,10 +24,10 @@ viết file này:
   scheduler, chưa context switch. `ntos_start()` chỉ là vòng lặp rỗng.
 - `include/ntos/*.h` đã khai báo public API (task/sem/queue) nhưng struct TCB
   thật trong code chưa khớp hết với bản thiết kế trong `ntos_design.md`.
-- `examples/01`–`07` dùng API tương lai của kernel; chưa chạy được vì kernel
-  chưa implement. `tests/host` vẫn là placeholder (chờ stage 8); các thư mục
-  test theo subsystem dưới `tests/` (xem bên dưới) là regression test thật,
-  build sạch trên target.
+- `examples/` gồm 2 demo tối giản (`01_scheduler_demo`, `02_ipc_demo`), build
+  được qua `-DNTOS_BUILD_EXAMPLES=ON`. `tests/host` vẫn là placeholder (chờ
+  stage 8); các thư mục test theo subsystem dưới `tests/` (xem bên dưới) là
+  regression test thật, build sạch trên target.
 - Không có git tag nào trong repo.
 
 ## Cấu trúc thư mục
@@ -77,7 +77,7 @@ scripts/flash.sh
 # Bật thêm examples khi cần (mặc định: NTOS_BUILD_TESTS=ON, NTOS_BUILD_EXAMPLES=OFF)
 cmake -S . -B build -DCMAKE_TOOLCHAIN_FILE=cmake/arm-none-eabi-toolchain.cmake \
     -DNTOS_BUILD_EXAMPLES=ON -DNTOS_BUILD_TESTS=ON
-cmake --build build --target example_basic_tasks
+cmake --build build --target example_scheduler_demo
 ```
 
 Target firmware mới luôn khai báo qua `ntos_add_firmware()` trong

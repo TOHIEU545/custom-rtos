@@ -87,7 +87,7 @@ Ba loại target xuất hiện trong project:
 |---|---|---|---|
 | `INTERFACE` | `ntos_compiler_options`, `cmsis`, `ntos_platform_stm32f10x` | **Không file nào cả** — chỉ là túi thuộc tính (include dirs, defines, link options) | Không bao giờ tự build, chỉ propagate khi có ai link vào |
 | `STATIC` | `ntos_bsp`, `ntos_kernel`, `ntos_port` | `.a` (qua `ar`, không qua linker thật) | Khi có target nào đó (trực tiếp/gián tiếp) cần nó |
-| `EXECUTABLE` | `test_initial_stack`, `example_basic_tasks`,... | `.elf` (qua `gcc` với đầy đủ cờ link, bao gồm `-T`) | Khi bạn `cmake --build --target <tên>` đúng tên đó |
+| `EXECUTABLE` | `test_initial_stack`, `example_scheduler_demo`,... | `.elf` (qua `gcc` với đầy đủ cờ link, bao gồm `-T`) | Khi bạn `cmake --build --target <tên>` đúng tên đó |
 
 ---
 
@@ -182,7 +182,7 @@ scripts/clean.sh && scripts/build.sh test_initial_stack
 # Bật thêm examples/tests khi cần
 cmake -S . -B build -DCMAKE_TOOLCHAIN_FILE=cmake/arm-none-eabi-toolchain.cmake \
     -DNTOS_BUILD_EXAMPLES=ON -DNTOS_BUILD_TESTS=ON
-cmake --build build --target example_basic_tasks
+cmake --build build --target example_scheduler_demo
 
 # Xem lệnh compile/link thật sự CMake sinh ra cho 1 file/target
 cmake --build build --target <tên> --verbose
