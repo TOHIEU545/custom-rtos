@@ -1,0 +1,26 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "NTOS Debug",
+            "type": "cortex-debug",
+            "request": "launch",
+
+            "cwd": "${workspaceFolder}",
+            "executable": "${workspaceFolder}/build/firmware/current.elf",
+
+            "servertype": "openocd",
+            "interface": "swd",
+
+            "configFiles": [
+                "${workspaceFolder}/tools/openocd/stm32f103.cfg"
+            ],
+
+            "gdbPath": "gdb-multiarch",
+            "serverpath": "openocd",
+
+            "runToEntryPoint": "main",
+            "showDevDebugOutput": "raw"
+        }
+    ]
+}

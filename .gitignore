@@ -1,22 +1,25 @@
+# Build directories
 /build/
+*/build/
 /build-*/
+
+# Build artifacts
 *.elf
 *.bin
 *.hex
 *.map
 *.o
 *.a
+
+# cmake-learning
+cmake-learning/
+
+# IDE / editor
 .vscode/*
 !.vscode/launch.json
 .idea/
 .project
 .cproject
+
+# OS
 .DS_Store
-
-*/build/
-
-build/
-
-logs/
-
-.vscode/
