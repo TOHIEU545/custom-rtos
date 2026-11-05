@@ -1,8 +1,8 @@
-# NTOS Architecture
+# MyRTOS Architecture
 
 ## 1. Overview
 
-NTOS là một RTOS nhỏ mang tính học tập cho **STM32F103 / ARM Cortex-M3**.
+MyRTOS là một RTOS nhỏ mang tính học tập cho **STM32F103 / ARM Cortex-M3**.
 
 Kiến trúc được tách thành các khối chính để phân biệt rõ logic RTOS, phần phụ thuộc CPU
 và phần phụ thuộc platform.
@@ -12,7 +12,8 @@ và phần phụ thuộc platform.
 | **Kernel** | Quản lý task, scheduler, delay và IPC |
 | **Cortex-M3 Port** | Xử lý context switch, SysTick, SVC và PendSV |
 | **BSP** | Khởi tạo board và truy cập peripheral STM32F103 |
-| **CMSIS** | Cung cấp định nghĩa Cortex-M3 core và STM32F10x device |
+| **CMSIS-Core** | Định nghĩa Cortex-M3 chuẩn do Arm cung cấp, đặt cục bộ trong từng module |
+| **ST device files** | Định nghĩa STM32F10x và system initialization do ST cung cấp |
 
 ## 2. High-Level Architecture
 
@@ -24,7 +25,7 @@ và phần phụ thuộc platform.
 +------------------------------------------------------------------+
 
 +-------------------------------+  +-------------------------------+
-|          NTOS RTOS            |  |       PLATFORM SUPPORT        |
+|          MyRTOS RTOS            |  |       PLATFORM SUPPORT        |
 |                               |  |                               |
 |  +-------------------------+  |  |  +-------------------------+  |
 |  |         KERNEL          |  |  |  |          BSP            |  |
@@ -35,10 +36,10 @@ và phần phụ thuộc platform.
 |  +-------------------------+  |  |  +-------------------------+  |
 |                               |  |                               |
 |  +-------------------------+  |  |  +-------------------------+  |
-|  |     CORTEX-M3 PORT      |  |  |  |         CMSIS           |  |
+|  |     CORTEX-M3 PORT      |  |  |  |    BOARD + VENDOR       |  |
 |  |                         |  |  |  |                         |  |
-|  | Context Switch · SysTick|  |  |  | Cortex-M3 Core          |  |
-|  | SVC · PendSV · PSP/MSP  |  |  |  | STM32F10x Device       |  |
+|  | Context Switch · SysTick|  |  |  | CMSIS-Core · ST Device  |  |
+|  | SVC · PendSV · PSP/MSP  |  |  |  | Startup · Linker        |  |
 |  +-------------------------+  |  |  +-------------------------+  |
 +-------------------------------+  +-------------------------------+
 
@@ -50,14 +51,15 @@ và phần phụ thuộc platform.
 +------------------------------------------------------------------+
 ```
 
-Application sử dụng public API của NTOS để làm việc với kernel, đồng thời có thể sử dụng
+Application sử dụng public API của MyRTOS để làm việc với kernel, đồng thời có thể sử dụng
 BSP để truy cập phần cứng.
 
 Kernel không phụ thuộc BSP. Phần phụ thuộc kiến trúc CPU được tách vào
-`port/cortex_m3/`, còn phần phụ thuộc STM32F103 nằm trong `bsp/stm32f10x/`.
+`port/ARM/cortex-m3/`, còn phần phụ thuộc STM32F103 nằm trong `boards/STM32F103/`.
 
-Cortex-M3 Port và BSP đều sử dụng CMSIS: port dùng các định nghĩa Cortex-M3 core,
-còn BSP dùng các định nghĩa STM32F10x device.
+Cortex-M3 port chỉ dùng CMSIS-Core nằm ngay trong port. BSP dùng bản CMSIS-Core
+cục bộ của board và device files do ST cung cấp. Không module nào phụ thuộc một
+thư mục vendor dùng chung ở root.
 
 ## 3. Components
 
@@ -74,12 +76,12 @@ còn BSP dùng các định nghĩa STM32F10x device.
 | Ready list / wait list infrastructure |
 | Stack diagnostics |
 
-Application truy cập kernel thông qua public API trong `include/ntos/`.
-Các chi tiết nội bộ nằm trong `kernel/internal/`.
+Application truy cập kernel thông qua public API trong `kernel/`.
+Các chi tiết nội bộ nằm trong `kernel/`.
 
 ### Cortex-M3 Port
 
-`port/cortex_m3/` chứa phần phụ thuộc kiến trúc ARM Cortex-M3.
+`port/ARM/cortex-m3/` chứa phần phụ thuộc kiến trúc ARM Cortex-M3.
 
 | Cơ chế | Vai trò |
 | --- | --- |
@@ -88,11 +90,15 @@ Các chi tiết nội bộ nằm trong `kernel/internal/`.
 | **SysTick** | Cung cấp system tick cho kernel |
 | **PSP / MSP** | Tách task stack và exception stack |
 
+Port không include `stm32f10x.h`, `bsp.h` hay bất kỳ header nào từ `boards/`.
+Tần số CPU được application truyền vào `rtos_start()`, nên port không phụ thuộc
+biến `SystemCoreClock` của ST.
+
 Chi tiết xem [Context Switch](context_switch.md).
 
 ### BSP
 
-`bsp/stm32f10x/` chứa phần phụ thuộc STM32F103.
+`boards/STM32F103/` chứa phần phụ thuộc STM32F103.
 
 | Thành phần | Vai trò |
 | --- | --- |
@@ -103,17 +109,18 @@ Chi tiết xem [Context Switch](context_switch.md).
 
 BSP độc lập với kernel và được application sử dụng trực tiếp khi cần truy cập phần cứng.
 
-### CMSIS
+### Third-party source
 
-`cmsis/` cung cấp các định nghĩa chuẩn cho Cortex-M3 core và STM32F10x device.
+Code bên thứ ba không trộn với code MyRTOS tự viết:
 
-| Consumer | CMSIS usage |
-| --- | --- |
-| **Cortex-M3 Port** | Core definitions: NVIC, SysTick, SCB và CPU intrinsics |
-| **BSP** | Device definitions: register và peripheral STM32F10x |
+| Vị trí | Nguồn | Nội dung |
+| --- | --- | --- |
+| `port/ARM/cortex-m3/cmsis/` | Arm | CMSIS-Core tối thiểu cho Cortex-M3 port |
+| `boards/STM32F103/cmsis/` | Arm | CMSIS-Core dùng bởi ST device header |
+| `boards/STM32F103/vendor/ST/` | ST | `stm32f10x.h`, system header/source |
 
-CMSIS không phải driver layer; nó cung cấp các định nghĩa mà port và BSP sử dụng để làm
-việc với CPU core và peripheral.
+CMSIS-Core không phải driver layer. ST device files cung cấp register layout,
+interrupt number và system clock implementation riêng cho STM32F10x.
 
 ## 4. Related Documentation
 

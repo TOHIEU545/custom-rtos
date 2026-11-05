@@ -1,6 +1,6 @@
-# NTOS - Real Time OS
+# MyRTOS - Real Time OS
 
-**ntos** là một RTOS (Real-Time Operating System) nhỏ, mang tính học tập,
+**MyRTOS** là một RTOS (Real-Time Operating System) nhỏ, mang tính học tập,
 được viết cho **STM32F103 / ARM Cortex-M3**. Mục tiêu của dự án không phải
 là tạo ra một RTOS production-grade, mà là để hiểu rõ bản chất của:
 
@@ -15,7 +15,7 @@ context switch, không phụ thuộc heap, không xoá task khi runtime.
 ## Phần cứng sử dụng
 
 - **MCU:** STM32F103 (ARM Cortex-M3), theo linker script hiện tại:
-  256 KB Flash, 64 KB RAM (`bsp/stm32f10x/linker/stm32f10x.ld`).
+  256 KB Flash, 64 KB RAM (`boards/STM32F103/linker.ld`).
 - **Debug probe:** ST-Link (kết nối qua SWD).
 - **Giao tiếp:** USART1, dùng để log/debug qua UART trong các ví dụ.
 
@@ -26,19 +26,18 @@ context switch, không phụ thuộc heap, không xoá task khi runtime.
 | CMake (>= 3.22) | Cấu hình và điều phối build |
 | `arm-none-eabi-gcc` / `arm-none-eabi-objcopy` / `arm-none-eabi-size` | Toolchain cross-compile cho Cortex-M3 (`cmake/arm-none-eabi-toolchain.cmake`) |
 | OpenOCD | Nạp firmware và mở phiên debug qua ST-Link (`tools/openocd/stm32f103.cfg`) |
-| GDB (`gdb-multiarch`) | Debug target qua OpenOCD (`tools/gdb/ntos.gdb`, kết nối `:3333`) |
+| GDB (`gdb-multiarch`) | Debug target qua OpenOCD (`tools/gdb/my_rtos.gdb`, kết nối `:3333`) |
 
 ## Cấu trúc thư mục
 
 ```text
-ntos/
-├── include/ntos/          Public API: ntos.h, ntos_task.h, ntos_sem.h, ntos_queue.h...
-├── kernel/                Kernel thuần, không biết CPU cụ thể (task, list, assert).
-│   └── internal/          Header nội bộ kernel — chỉ port/ được phép include chéo.
-├── port/cortex_m3/        Lớp nối kernel với Cortex-M3: SVC, PendSV, PSP/MSP, ASM.
-├── bsp/stm32f10x/         Board support: clock, gpio, uart, exti, startup, linker.
-├── cmsis/                 Vendor: CMSIS core + STM32F10x device headers (header-only).
-├── examples/              Firmware demo dùng kernel/port (scheduler demo, IPC demo).
+my_rtos/
+├── kernel/                Kernel, chia cặp header/source theo từng subsystem.
+│   ├── include/           Public API: core, task, list, stack, semaphore, queue.
+│   └── src/               Implementation tương ứng và kernel_internal.h.
+├── port/ARM/cortex-m3/    Cortex-M3 port và bản CMSIS-Core tối thiểu của Arm.
+├── boards/STM32F103/      BSP, startup, linker, CMSIS-Core và ST device files.
+├── examples/              Hai firmware demo, mỗi demo chỉ có một source file.
 ├── tests/
 │   ├── stack/             Test board thật — initial stack, diagnostics.
 │   ├── task/              Test board thật — first task, delay.
@@ -50,27 +49,21 @@ ntos/
 ├── docs/                  Tài liệu thiết kế + coding convention.
 ├── scripts/               build.sh, flash.sh, clean.sh, debug-server.sh, debug.sh.
 ├── tools/                 Cấu hình OpenOCD, GDB.
-└── cmake/                 Toolchain file, compiler options, hàm ntos_add_firmware().
+└── cmake/                 Chỉ chứa ARM toolchain file.
 ```
 
 ## Các bước để build và chạy
 
 Hai nhóm firmware — `examples/` và `tests/` — được bật/tắt bằng hai option
-trong `CMakeLists.txt` ở thư mục gốc:
+trong `CMakeLists.txt` ở thư mục gốc. `scripts/build.sh` bật cả hai nhóm để có
+thể build bất kỳ target nào:
 
 ```cmake
-option(NTOS_BUILD_EXAMPLES "Build ntos examples" ON)
-option(NTOS_BUILD_TESTS "Build tests" OFF)
+option(RTOS_BUILD_EXAMPLES "Build MyRTOS examples" ON)
+option(RTOS_BUILD_TESTS "Build MyRTOS tests" OFF)
 ```
 
-Muốn build nhóm nào thì sửa trực tiếp hai dòng này rồi build lại.
-
-**Build examples (mặc định):**
-
-```cmake
-option(NTOS_BUILD_EXAMPLES "Build ntos examples" ON)
-option(NTOS_BUILD_TESTS "Build tests" OFF)
-```
+**Build một example:**
 
 ```sh
 # Build một target — chỉ compile lại phần đã đổi
@@ -80,19 +73,16 @@ scripts/build.sh example_scheduler_demo
 scripts/clean.sh && scripts/build.sh example_scheduler_demo
 ```
 
-**Build tests:** đổi hai option thành
-
-```cmake
-option(NTOS_BUILD_EXAMPLES "Build ntos examples" OFF)
-option(NTOS_BUILD_TESTS "Build tests" ON)
-```
+**Build một test:**
 
 ```sh
-scripts/clean.sh && scripts/build.sh test_initial_stack
+scripts/build.sh test_initial_stack
 ```
 
-Target firmware mới luôn được khai báo qua `ntos_add_firmware()` trong
-`cmake/ntos_firmware.cmake`, không tự gọi `add_executable` tay.
+Mỗi firmware được khai báo trực tiếp bằng `add_executable()` và
+`target_link_libraries()` trong `examples/CMakeLists.txt` hoặc
+`tests/CMakeLists.txt`. Project cố ý không bọc các lệnh này trong helper riêng
+để luồng build dễ đọc với một project học tập.
 
 ## Flash và debug chương trình
 
@@ -117,7 +107,7 @@ scripts/debug-server.sh
 scripts/debug.sh
 ```
 
-`debug.sh` dùng chung command file `tools/gdb/ntos.gdb`: tự connect
+`debug.sh` dùng chung command file `tools/gdb/my_rtos.gdb`: tự connect
 `target extended-remote :3333`, `monitor reset halt`, rồi đặt breakpoint tạm
 ở `main()` và `continue` — chương trình dừng ngay khi vào `main()`, không tự
 đặt thêm breakpoint hay chạy tiếp.

@@ -26,7 +26,9 @@ cd "${ROOT_DIR}"
 cmake \
     -S "${ROOT_DIR}" \
     -B "${BUILD_DIR}" \
-    -DCMAKE_TOOLCHAIN_FILE="${ROOT_DIR}/cmake/arm-none-eabi-toolchain.cmake"
+    -DCMAKE_TOOLCHAIN_FILE="${ROOT_DIR}/cmake/arm-none-eabi-toolchain.cmake" \
+    -DRTOS_BUILD_EXAMPLES=ON \
+    -DRTOS_BUILD_TESTS=ON
 
 # Build đúng target được yêu cầu.
 cmake --build "${BUILD_DIR}" --target "${TARGET}"

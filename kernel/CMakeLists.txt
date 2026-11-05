@@ -1,7 +1,14 @@
-# Portable ntos kernel code. Architecture-specific code lives under port/.
-add_library(ntos_kernel STATIC ntos_kernel.c ntos_task.c ntos_list.c ntos_sem.c ntos_queue.c ntos_stack.c ntos_assert.c)
+# Portable MyRTOS kernel code. Architecture-specific code lives under port/.
+add_library(rtos_kernel STATIC
+    src/core.c
+    src/list.c
+    src/task.c
+    src/stack.c
+    src/semaphore.c
+    src/queue.c)
 
-target_include_directories(ntos_kernel
-    PUBLIC ${CMAKE_SOURCE_DIR}/include
-    PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/internal ${CMAKE_SOURCE_DIR}/port/cortex_m3)
-target_link_libraries(ntos_kernel PUBLIC ntos_compiler_options cmsis)
+target_include_directories(rtos_kernel
+    PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/include
+    PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/src)
+
+target_link_libraries(rtos_kernel PRIVATE rtos_port)

@@ -15,26 +15,25 @@
  *      phải gần đúng số tick yêu cầu (không bị trễ nhiều vì kẹt sau task_low).
  *   H. Invariant: owner của ready_item phải luôn trỏ đúng TCB sở hữu nó.
  *
- * TEST-ONLY: include thẳng kernel/internal để đọc ready_item.container và
- * mảng ready_lists[] (xem NTOS_CODING_CONVENTION.md mục 2.4).
+ * TEST-ONLY: include thẳng kernel/src/kernel_internal.h để đọc ready_item.container và
+ * mảng ready_lists[] (xem RTOS_CODING_CONVENTION.md mục 2.4).
  */
-#include <ntos/ntos.h>
-#include <board.h>
-#include <uart.h>
-#include "ntos_kernel_internal.h"
+#include <rtos.h>
+#include <bsp.h>
+#include "kernel_internal.h"
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
 
 #define STACK_WORDS ((size_t)64U)
-#define HIGH_PRIORITY ((ntos_priority_t)3U)
-#define LOW_PRIORITY ((ntos_priority_t)1U)
+#define HIGH_PRIORITY ((rtos_priority_t)3U)
+#define LOW_PRIORITY ((rtos_priority_t)1U)
 #define TASK_B_DELAY_TICKS 300U
 #define WAKE_LATENCY_TOLERANCE_TICKS 3U
 #define LOW_CHECK_EVERY 5000U
 
-static ntos_tcb_t task_b_tcb;
-static ntos_tcb_t task_low_tcb;
+static rtos_tcb_t task_b_tcb;
+static rtos_tcb_t task_low_tcb;
 static _Alignas(8) uint32_t task_b_stack[STACK_WORDS];
 static _Alignas(8) uint32_t task_low_stack[STACK_WORDS];
 
@@ -55,10 +54,10 @@ static void task_b(void *argument)
 
     for (;;)
     {
-        ntos_tick_t before = ntos_tick_get();
-        ntos_delay(TASK_B_DELAY_TICKS);
-        ntos_tick_t after = ntos_tick_get();
-        ntos_tick_t elapsed = after - before;
+        rtos_tick_t before = rtos_tick_get();
+        rtos_delay(TASK_B_DELAY_TICKS);
+        rtos_tick_t after = rtos_tick_get();
+        rtos_tick_t elapsed = after - before;
 
         /* E: ngay sau khi wake, ready_item phải nằm đúng ready_lists[priority]. */
         bool wake_container_correct =
@@ -88,7 +87,7 @@ static void task_low(void *argument)
 
         if ((g_task_low_run_count % LOW_CHECK_EVERY) == 0U)
         {
-            if (task_b_tcb.state == NTOS_TASK_BLOCKED)
+            if (task_b_tcb.state == RTOS_TASK_BLOCKED)
             {
                 /* D: BLOCKED task tuyệt đối không còn nằm trong ready list. */
                 bool blocked_container_null = (task_b_tcb.ready_item.container == NULL);
@@ -100,25 +99,25 @@ static void task_low(void *argument)
 
 int main(void)
 {
-    ntos_status_t status_b;
-    ntos_status_t status_low;
+    rtos_status_t status_b;
+    rtos_status_t status_low;
 
     board_init();
-    ntos_init();
+    rtos_init();
 
-    status_b = ntos_task_create_static(&task_b_tcb, "task_b", task_b, NULL,
+    status_b = rtos_task_create_static(&task_b_tcb, "task_b", task_b, NULL,
         task_b_stack, STACK_WORDS, HIGH_PRIORITY);
-    status_low = ntos_task_create_static(&task_low_tcb, "task_low", task_low, NULL,
+    status_low = rtos_task_create_static(&task_low_tcb, "task_low", task_low, NULL,
         task_low_stack, STACK_WORDS, LOW_PRIORITY);
 
-    if ((status_b != NTOS_OK) || (status_low != NTOS_OK))
+    if ((status_b != RTOS_OK) || (status_low != RTOS_OK))
     {
         for (;;)
         {
         }
     }
 
-    ntos_start(&task_b_tcb);
+    rtos_start(&task_b_tcb, board_cpu_clock_hz());
 
     for (;;)
     {

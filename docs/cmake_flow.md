@@ -1,191 +1,116 @@
-# CMake trong ntos — luồng thật của project
+# CMake trong MyRTOS
 
-Tài liệu này áp các khái niệm CMake cơ bản vào đúng `CMakeLists.txt` thật của
-`ntos`, để sau này quay lại đọc code là nhớ ra ngay hệ thống đang làm gì, target
-nào phụ thuộc target nào, lệnh nào chạy lúc nào. Phần "CMake nói chung" (dùng để
-học, không mô tả build thật của ntos) nằm ở branch `learning/cmake`
-(`CMAKE_BASICS_REPORT.md`), không còn trên main-track.
+Build system được giữ đơn giản để có thể nhìn trực tiếp từ target firmware về
+source và library mà nó sử dụng. Project không dùng custom CMake function,
+object library hay package export.
 
----
+## 1. Các file liên quan
 
-## 1. Sơ đồ thư mục liên quan tới build
-
-```
-CMakeLists.txt                 <- root: option(), include(), add_subdirectory()
-cmake/
-├── arm-none-eabi-toolchain.cmake   <- chọn compiler ARM (đọc TRƯỚC project())
-├── ntos_compiler_options.cmake     <- cờ compile/link chung (-mcpu, -Wall...)
-└── ntos_firmware.cmake             <- hàm ntos_add_firmware(), điểm nối mọi lab/example
-
-cmsis/                          <- vendor: CMSIS core + STM32F10x device headers (header-only)
-bsp/stm32f10x/                  <- board support: init clock/gpio/uart/exti + linker script
-kernel/                         <- kernel thuần, không biết gì về CPU cụ thể
-port/cortex_m3/                 <- lớp nối kernel với Cortex-M3 (SVC, PendSV, PSP/MSP)
-examples/                       <- firmware có dùng kernel/port
-tests/                          <- regression test build trên board thật (mặc định bật)
+```text
+CMakeLists.txt                       Cấu hình chung và chọn module
+cmake/arm-none-eabi-toolchain.cmake  Chọn ARM GCC toolchain
+kernel/CMakeLists.txt                Portable kernel library
+port/ARM/cortex-m3/CMakeLists.txt    Cortex-M3 port library
+boards/STM32F103/CMakeLists.txt      BSP và linker configuration
+examples/CMakeLists.txt              Hai example firmware
+tests/CMakeLists.txt                 Các test firmware chạy trên board
 ```
 
-Bare-metal labs (không dùng kernel/port) đã chuyển sang branch `learning/cortex-m3`.
+Mỗi module chính có một `CMakeLists.txt`. Không có CMake file con trong từng
+test hoặc example.
 
-Mỗi thư mục có `CMakeLists.txt` chỉ khai báo phần của chính nó — không thư mục
-nào (trừ một ngoại lệ ở §6) mở đường dẫn vào phần private của thư mục khác.
-
----
-
-## 2. Thứ tự CMake thật sự chạy khi bạn configure
-
-```
-cmake -S . -B build -DCMAKE_TOOLCHAIN_FILE=cmake/arm-none-eabi-toolchain.cmake
-```
-
-1. **Trước `project()`**: CMake đọc `cmake/arm-none-eabi-toolchain.cmake` vì
-   được truyền qua `-DCMAKE_TOOLCHAIN_FILE`. File này set
-   `CMAKE_C_COMPILER=arm-none-eabi-gcc` — nếu không có bước này, CMake sẽ dùng
-   compiler host (gcc thường) và toàn bộ code Cortex-M3 sẽ không biên dịch
-   được (hoặc biên dịch sai kiến trúc).
-2. `project(ntos LANGUAGES C ASM)` — khai báo ngôn ngữ, kiểm tra compiler.
-3. `option(NTOS_BUILD_EXAMPLES OFF)`, `option(NTOS_BUILD_TESTS ON)` — 2 công
-   tắc bật/tắt cả nhóm firmware (tests bật mặc định, examples tắt mặc định).
-4. `include(cmake/ntos_compiler_options.cmake)` và
-   `include(cmake/ntos_firmware.cmake)` — **`include()` khác `add_subdirectory()`**:
-   nó chỉ nạp các lệnh `add_library()`/`function()` vào scope hiện tại (root)
-5. `add_subdirectory(cmsis)` → chạy `cmsis/CMakeLists.txt`.
-6. `add_subdirectory(bsp/stm32f10x)` → chạy `bsp/stm32f10x/CMakeLists.txt`
-   (target này link `cmsis`, nên phải add sau bước 5).
-7. Nếu `NTOS_BUILD_EXAMPLES=ON` HOẶC `NTOS_BUILD_TESTS=ON`: `add_subdirectory(kernel)`
-   rồi `add_subdirectory(port/cortex_m3)`.
-8. Nếu `NTOS_BUILD_EXAMPLES=ON`: `add_subdirectory(examples)`.
-9. Nếu `NTOS_BUILD_TESTS=ON` (mặc định có): `add_subdirectory(tests)`.
-
----
-
-## 3. Cây phụ thuộc target thật sự
-
-```
-ntos_compiler_options (INTERFACE)        cmsis (INTERFACE)
-      -mcpu=cortex-m3 -Wall...           CMSIS headers + STM32F10X_MD
-            ^   ^   ^                          ^   ^   ^
-            |   |   |                          |   |   |
-            |   |   +------ ntos_bsp (STATIC) -+   |   |
-            |   |                                   |   |
-            |   +---------- ntos_kernel (STATIC) ---+   |
-            |                                            |
-            +-------------- ntos_port (STATIC) ----------+
-
-ntos_platform_stm32f10x (INTERFACE)
-  = ntos_compiler_options + ntos_bsp + cmsis
-  + linker script (-T bsp/stm32f10x/linker/stm32f10x.ld)
-
-add_executable(test_xxx / example_xxx)    <- sinh ra bởi ntos_add_firmware()
-  PRIVATE ntos_platform_stm32f10x
-  PRIVATE ntos_kernel + ntos_port          (chỉ khi KHÔNG có cờ BARE_METAL)
-```
-
-Ba loại target xuất hiện trong project:
-
-| Loại | Ví dụ | Sinh ra file gì | Khi nào build |
-|---|---|---|---|
-| `INTERFACE` | `ntos_compiler_options`, `cmsis`, `ntos_platform_stm32f10x` | **Không file nào cả** — chỉ là túi thuộc tính (include dirs, defines, link options) | Không bao giờ tự build, chỉ propagate khi có ai link vào |
-| `STATIC` | `ntos_bsp`, `ntos_kernel`, `ntos_port` | `.a` (qua `ar`, không qua linker thật) | Khi có target nào đó (trực tiếp/gián tiếp) cần nó |
-| `EXECUTABLE` | `test_initial_stack`, `example_scheduler_demo`,... | `.elf` (qua `gcc` với đầy đủ cờ link, bao gồm `-T`) | Khi bạn `cmake --build --target <tên>` đúng tên đó |
-
----
-
-## 4. `ntos_add_firmware()` — điểm nối duy nhất
-
-Định nghĩa ở `cmake/ntos_firmware.cmake`. Mọi lab/example đều đi qua đây, thay
-vì tự gọi `add_executable` + `target_link_libraries` tay:
-
-```cmake
-ntos_add_firmware(my_bare_metal_target
-    BARE_METAL                          # bỏ qua ntos_kernel/ntos_port
-    MAIN main.c
-    SOURCES extra.c handler.S           # optional
-    CONFIG_DIR path/to/config           # optional, thêm include riêng cho target
-)
-```
-
-Bên trong, tóm gọn:
-
-```cmake
-add_executable(${target} ${ARG_MAIN} ${ARG_SOURCES})
-target_link_libraries(${target} PRIVATE ntos_platform_stm32f10x)
-if(NOT ARG_BARE_METAL)
-    target_link_libraries(${target} PRIVATE ntos_kernel ntos_port)
-endif()
-target_link_options(${target} PRIVATE -Wl,-Map=.../${target}.map)
-```
-
-`add_executable(${target} ...)` chính là dòng **duy nhất** biến chuỗi
-`"my_bare_metal_target"` thành một cái tên CMake/make thật sự biết tới — đây là
-chỗ để tra nếu bạn truyền `--target <tên gì đó>`
-
----
-
-## 5. Build-tree mirror source-tree
-
-`add_subdirectory(X)` không đụng vào source tree. Nó khiến CMake tạo một thư
-mục `X/` **song song bên trong thư mục build** (`build/X/`), chứa
-`Makefile`, `CMakeFiles/` và output (`.o`, `.a`, `.elf`) của target khai báo
-trong `X/CMakeLists.txt`. Ví dụ sau khi configure mặc định (`NTOS_BUILD_TESTS=ON`):
-
-```
-build/tests/stack/
-├── Makefile
-├── CMakeFiles/
-│   ├── test_initial_stack.dir/      <- .o trung gian
-│   └── test_stack_diagnostics.dir/
-├── test_initial_stack               <- ELF, không đuôi mở rộng
-└── test_stack_diagnostics
-```
-
-(mỗi thư mục con của `tests/` — `stack/`, `task/`, `scheduler/`, `queue/`,
-`semaphore/`, `stress/`, `integration/` — sinh ra một `build/tests/<tên>/`
-tương ứng, theo đúng nguyên tắc build-tree mirror source-tree ở trên).
-
-Đây cũng là lý do `scripts/build.sh` tìm ELF bằng
-`find build -type f -name "$TARGET"`: tên file trùng khớp tên target.
-
----
-
-## 6. Một chỗ phá lệ, biết trước để không bất ngờ
-
-`port/cortex_m3/CMakeLists.txt`:
-
-```cmake
-target_include_directories(ntos_port
-    PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}
-    PRIVATE ${CMAKE_SOURCE_DIR}/kernel/internal)
-```
-
-`kernel/internal/` được `kernel/CMakeLists.txt` khai là `PRIVATE` — nghĩa là
-chủ đích chỉ kernel tự dùng. Nhưng `port` vẫn include thẳng đường dẫn đó, vì
-context-switch cần thấy layout TCB nội bộ (không có cách nào tách bạch hoàn
-toàn port khỏi kernel — đây là kiểu ràng buộc chặt vốn dĩ tự nhiên giữa
-kernel/port trong mọi RTOS thật, không riêng ntos). Đây là **nơi duy nhất**
-một module tự ý mở đường dẫn sang phần private của module khác thay vì đi qua
-`target_link_libraries`. Nếu sau này thấy build lỗi include liên quan tới
-`kernel/internal`, hoặc muốn refactor port sang kiến trúc khác, đây là chỗ
-đầu tiên cần soi lại.
-
----
-
-## 7. Cheat sheet lệnh dùng hàng ngày
+## 2. Luồng configure
 
 ```sh
-# Build (incremental — chỉ compile lại phần đổi)
-scripts/build.sh test_initial_stack
-
-# Build sạch hoàn toàn (xoá build/ trước)
-scripts/clean.sh && scripts/build.sh test_initial_stack
-
-# Bật thêm examples/tests khi cần
-cmake -S . -B build -DCMAKE_TOOLCHAIN_FILE=cmake/arm-none-eabi-toolchain.cmake \
-    -DNTOS_BUILD_EXAMPLES=ON -DNTOS_BUILD_TESTS=ON
-cmake --build build --target example_scheduler_demo
-
-# Xem lệnh compile/link thật sự CMake sinh ra cho 1 file/target
-cmake --build build --target <tên> --verbose
+cmake -S . -B build \
+    -DCMAKE_TOOLCHAIN_FILE=cmake/arm-none-eabi-toolchain.cmake \
+    -DRTOS_BUILD_EXAMPLES=ON \
+    -DRTOS_BUILD_TESTS=ON
 ```
 
----
+Thứ tự xử lý:
+
+1. Toolchain file chọn `arm-none-eabi-gcc` trước khi `project()` chạy.
+2. Root `CMakeLists.txt` đặt chuẩn C11 và cờ chung cho Cortex-M3.
+3. CMake thêm board STM32F103; board tự chứa CMSIS-Core và ST device files.
+4. Nếu examples hoặc tests được bật, CMake thêm Cortex-M3 port rồi kernel.
+5. CMake thêm các executable trong nhóm đã bật.
+
+Hai option chỉ giúp giảm số target khi cần:
+
+```cmake
+option(RTOS_BUILD_EXAMPLES "Build MyRTOS examples" ON)
+option(RTOS_BUILD_TESTS "Build MyRTOS tests" OFF)
+```
+
+`scripts/build.sh` luôn bật cả hai để nhận được tên target example hoặc test.
+
+## 3. Các target
+
+```text
+rtos_port (STATIC)
+  └── rtos_kernel (STATIC)
+
+rtos_bsp + linker.ld
+  └── rtos_platform_stm32f103 (INTERFACE)
+
+firmware (EXECUTABLE)
+  ├── rtos_kernel
+  ├── rtos_port
+  └── rtos_platform_stm32f103
+```
+
+- `rtos_kernel` build sáu source trong `kernel/src/`: `core`, `list`, `task`,
+  `stack`, `semaphore` và `queue`.
+- `rtos_port` chứa phần phụ thuộc Cortex-M3 và CMSIS-Core riêng của port.
+- `rtos_bsp` chứa BSP/startup, CMSIS-Core riêng của board và ST device files.
+- `rtos_platform_stm32f103` gom BSP và linker script cho firmware.
+
+`INTERFACE` target không tạo file binary; nó chỉ truyền include directory,
+define hoặc link option cho target sử dụng nó. `STATIC` target tạo library
+`.a`. Mỗi `EXECUTABLE` tạo một ARM ELF.
+
+## 4. Khai báo firmware
+
+Firmware được khai báo bằng lệnh CMake cơ bản:
+
+```cmake
+add_executable(example_scheduler_demo scheduler_demo.c)
+
+target_link_libraries(example_scheduler_demo PRIVATE
+    rtos_kernel
+    rtos_port
+    rtos_platform_stm32f103)
+```
+
+Các dòng này được lặp lại có chủ ý. Với quy mô hiện tại, chúng rõ ràng hơn một
+helper function ẩn các bước tạo và link target.
+
+## 5. Build hằng ngày
+
+```sh
+# Cách ngắn nhất: configure, build target và lưu ELF hiện tại.
+scripts/build.sh example_scheduler_demo
+scripts/build.sh test_initial_stack
+
+# Hoặc dùng CMake trực tiếp.
+cmake --build build --target example_ipc_demo
+
+# Xem lệnh compiler/linker thật.
+cmake --build build --target example_ipc_demo --verbose
+```
+
+CMake build incremental: khi tái sử dụng thư mục `build/`, chỉ source bị thay
+đổi và các target phụ thuộc mới được biên dịch/link lại.
+
+## 6. Thêm firmware mới
+
+1. Thêm một source vào `examples/` hoặc thư mục tính năng tương ứng trong
+   `tests/`.
+2. Thêm `add_executable()` vào CMake file của nhóm đó.
+3. Link ba target `rtos_kernel`, `rtos_port` và
+   `rtos_platform_stm32f103`.
+4. Build bằng đúng tên executable vừa khai báo.
+
+Chỉ nên tạo helper CMake khi số target và thuộc tính lặp tăng đủ lớn để việc
+duy trì trực tiếp thật sự khó hơn việc đọc helper.

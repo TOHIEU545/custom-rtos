@@ -10,7 +10,7 @@ FIRMWARE_DIR="${ROOT_DIR}/build/firmware"
 ELF="${FIRMWARE_DIR}/current.elf"
 TARGET_FILE="${FIRMWARE_DIR}/current.target"
 
-GDB_CMDS="${ROOT_DIR}/tools/gdb/ntos.gdb"
+GDB_CMDS="${ROOT_DIR}/tools/gdb/my_rtos.gdb"
 
 cd "${ROOT_DIR}"
 
@@ -52,7 +52,7 @@ echo
 echo "Yêu cầu scripts/debug-server.sh đang chạy ở một terminal khác."
 echo
 
-# tools/gdb/ntos.gdb đã có sẵn: connect :3333, reset halt, chạy tới main().
+# tools/gdb/my_rtos.gdb đã có sẵn: connect :3333, reset halt, chạy tới main().
 # Không lặp lại các lệnh này ở đây, không tự load lại firmware (đó là việc
 # của scripts/flash.sh).
 exec gdb-multiarch "${ELF}" -x "${GDB_CMDS}"

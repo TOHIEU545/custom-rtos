@@ -1,7 +1,6 @@
-#include <ntos/ntos.h>
+#include <rtos.h>
 
-#include <board.h>
-#include <uart.h>
+#include <bsp.h>
 
 #include <stdbool.h>
 #include <stddef.h>
@@ -10,16 +9,16 @@
 #define CONDUCTOR_STACK_WORDS ((size_t)64U)
 #define WORKER_STACK_WORDS ((size_t)128U)
 
-#define CONDUCTOR_PRIORITY ((ntos_priority_t)3U)
-#define WORKER_PRIORITY ((ntos_priority_t)1U)
+#define CONDUCTOR_PRIORITY ((rtos_priority_t)3U)
+#define WORKER_PRIORITY ((rtos_priority_t)1U)
 
 #define WORKER_CONSUME_WORDS ((size_t)30U)
 
-#define SETTLE_TICKS ((ntos_tick_t)1000U)
-#define HEARTBEAT_TICKS ((ntos_tick_t)2000U)
+#define SETTLE_TICKS ((rtos_tick_t)1000U)
+#define HEARTBEAT_TICKS ((rtos_tick_t)2000U)
 
-static ntos_tcb_t conductor_tcb;
-static ntos_tcb_t worker_tcb;
+static rtos_tcb_t conductor_tcb;
+static rtos_tcb_t worker_tcb;
 
 static _Alignas(8) uint32_t conductor_stack[CONDUCTOR_STACK_WORDS];
 static _Alignas(8) uint32_t worker_stack[WORKER_STACK_WORDS];
@@ -58,7 +57,7 @@ static void uart_write_value(const char *label, size_t words)
     bsp_uart_write_string(" bytes)\r\n");
 }
 
-static void print_stack_info(const char *title, const ntos_task_stack_info_t *info)
+static void print_stack_info(const char *title, const rtos_task_stack_info_t *info)
 {
     bsp_uart_write_string("\r\n=== ");
     bsp_uart_write_string(title);
@@ -112,14 +111,14 @@ static void worker_task(void *argument)
 
     for (;;)
     {
-        ntos_delay(HEARTBEAT_TICKS);
+        rtos_delay(HEARTBEAT_TICKS);
     }
 }
 
 static void conductor_task(void *argument)
 {
-    ntos_task_stack_info_t info_before_worker;
-    ntos_task_stack_info_t info_after_worker;
+    rtos_task_stack_info_t info_before_worker;
+    rtos_task_stack_info_t info_after_worker;
 
     (void)argument;
 
@@ -127,7 +126,7 @@ static void conductor_task(void *argument)
      * At this point the conductor is running first because it has higher
      * priority. The worker has not executed yet.
      */
-    if (ntos_task_stack_get_info(&worker_tcb, &info_before_worker) == NTOS_OK)
+    if (rtos_task_stack_get_info(&worker_tcb, &info_before_worker) == RTOS_OK)
     {
         print_stack_info("Worker before running", &info_before_worker);
     }
@@ -138,12 +137,12 @@ static void conductor_task(void *argument)
     /*
      * While the conductor is blocked, the lower-priority worker gets CPU time.
      */
-    ntos_delay(SETTLE_TICKS);
+    rtos_delay(SETTLE_TICKS);
 
     /*
      * The conductor runs again after the delay and reads the worker's stack.
      */
-    if (ntos_task_stack_get_info(&worker_tcb, &info_after_worker) == NTOS_OK)
+    if (rtos_task_stack_get_info(&worker_tcb, &info_after_worker) == RTOS_OK)
     {
         print_stack_info("Worker after consuming stack", &info_after_worker);
     }
@@ -158,45 +157,45 @@ static void conductor_task(void *argument)
 
     for (;;)
     {
-        ntos_delay(HEARTBEAT_TICKS);
+        rtos_delay(HEARTBEAT_TICKS);
     }
 }
 
 int main(void)
 {
-    ntos_task_stack_info_t info_created;
+    rtos_task_stack_info_t info_created;
 
     board_init();
-    ntos_init();
+    rtos_init();
 
-    if (ntos_task_create_static(&worker_tcb, "worker", worker_task, NULL, worker_stack,
-                                WORKER_STACK_WORDS, WORKER_PRIORITY) != NTOS_OK)
+    if (rtos_task_create_static(&worker_tcb, "worker", worker_task, NULL, worker_stack,
+                                WORKER_STACK_WORDS, WORKER_PRIORITY) != RTOS_OK)
     {
         for (;;)
         {
         }
     }
 
-    if (ntos_task_create_static(&conductor_tcb, "conductor", conductor_task, NULL, conductor_stack,
-                                CONDUCTOR_STACK_WORDS, CONDUCTOR_PRIORITY) != NTOS_OK)
+    if (rtos_task_create_static(&conductor_tcb, "conductor", conductor_task, NULL, conductor_stack,
+                                CONDUCTOR_STACK_WORDS, CONDUCTOR_PRIORITY) != RTOS_OK)
     {
         for (;;)
         {
         }
     }
 
-    bsp_uart_write_string("\r\n=== NTOS stack diagnostics ===\r\n");
+    bsp_uart_write_string("\r\n=== MyRTOS stack diagnostics ===\r\n");
 
     /*
      * Read the worker stack before the scheduler starts.
      * Only the initial context frame should have consumed stack at this point.
      */
-    if (ntos_task_stack_get_info(&worker_tcb, &info_created) == NTOS_OK)
+    if (rtos_task_stack_get_info(&worker_tcb, &info_created) == RTOS_OK)
     {
         print_stack_info("Worker immediately after creation", &info_created);
     }
 
-    ntos_start(&conductor_tcb);
+    rtos_start(&conductor_tcb, board_cpu_clock_hz());
 
     for (;;)
     {

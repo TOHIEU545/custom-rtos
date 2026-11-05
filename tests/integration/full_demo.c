@@ -1,8 +1,6 @@
-#include <ntos/ntos.h>
+#include <rtos.h>
 
-#include <board.h>
-#include <exti.h>
-#include <uart.h>
+#include <bsp.h>
 
 #include <stdbool.h>
 #include <stddef.h>
@@ -10,24 +8,24 @@
 
 #define STACK_WORDS ((size_t)64U)
 
-#define CONTROL_PRIORITY ((ntos_priority_t)6U)
-#define PARSER_PRIORITY ((ntos_priority_t)4U)
-#define LOGGER_PRIORITY ((ntos_priority_t)2U)
+#define CONTROL_PRIORITY ((rtos_priority_t)6U)
+#define PARSER_PRIORITY ((rtos_priority_t)4U)
+#define LOGGER_PRIORITY ((rtos_priority_t)2U)
 
 #define EVENT_QUEUE_CAPACITY ((size_t)4U)
-#define LOGGER_PERIOD_TICKS ((ntos_tick_t)2000U)
+#define LOGGER_PERIOD_TICKS ((rtos_tick_t)2000U)
 
-static ntos_tcb_t control_tcb;
-static ntos_tcb_t parser_tcb;
-static ntos_tcb_t logger_tcb;
+static rtos_tcb_t control_tcb;
+static rtos_tcb_t parser_tcb;
+static rtos_tcb_t logger_tcb;
 
 static _Alignas(8) uint32_t control_stack[STACK_WORDS];
 static _Alignas(8) uint32_t parser_stack[STACK_WORDS];
 static _Alignas(8) uint32_t logger_stack[STACK_WORDS];
 
-static ntos_semaphore_t control_sem;
+static rtos_semaphore_t control_sem;
 
-static ntos_queue_t event_queue;
+static rtos_queue_t event_queue;
 static uint32_t event_queue_storage[EVENT_QUEUE_CAPACITY];
 
 static volatile uint32_t g_control_count;
@@ -63,7 +61,7 @@ static void control_task(void *argument)
 
     for (;;)
     {
-        ntos_sem_take(&control_sem, NTOS_WAIT_FOREVER);
+        rtos_sem_take(&control_sem, RTOS_WAIT_FOREVER);
 
         g_control_count++;
         board_led_toggle(BOARD_LED_D0);
@@ -82,7 +80,7 @@ static void parser_task(void *argument)
 
     for (;;)
     {
-        ntos_queue_receive(&event_queue, &event, NTOS_WAIT_FOREVER);
+        rtos_queue_receive(&event_queue, &event, RTOS_WAIT_FOREVER);
 
         g_parser_count++;
         board_led_toggle(BOARD_LED_D1);
@@ -107,7 +105,7 @@ static void logger_task(void *argument)
 
     for (;;)
     {
-        ntos_delay(LOGGER_PERIOD_TICKS);
+        rtos_delay(LOGGER_PERIOD_TICKS);
 
         bsp_uart_write_string("status: control=");
         uart_write_uint32(g_control_count);
@@ -128,7 +126,7 @@ void EXTI1_IRQHandler(void)
 
     event = ++g_event_counter;
 
-    (void)ntos_queue_send_from_isr(&event_queue, &event, &higher_priority_task_woken);
+    (void)rtos_queue_send_from_isr(&event_queue, &event, &higher_priority_task_woken);
 }
 
 void EXTI15_10_IRQHandler(void)
@@ -139,50 +137,50 @@ void EXTI15_10_IRQHandler(void)
 
         bsp_exti_clear_pending(BOARD_KEY1_PIN);
 
-        (void)ntos_sem_give_from_isr(&control_sem, &higher_priority_task_woken);
+        (void)rtos_sem_give_from_isr(&control_sem, &higher_priority_task_woken);
     }
 }
 
 int main(void)
 {
     board_init();
-    ntos_init();
+    rtos_init();
 
-    ntos_sem_init(&control_sem, 0U, 1U);
+    rtos_sem_init(&control_sem, 0U, 1U);
 
-    if (ntos_queue_init_static(&event_queue, event_queue_storage, sizeof(uint32_t),
-                               EVENT_QUEUE_CAPACITY) != NTOS_OK)
+    if (rtos_queue_init_static(&event_queue, event_queue_storage, sizeof(uint32_t),
+                               EVENT_QUEUE_CAPACITY) != RTOS_OK)
     {
         for (;;)
         {
         }
     }
 
-    if (ntos_task_create_static(&control_tcb, "control", control_task, NULL, control_stack,
-                                STACK_WORDS, CONTROL_PRIORITY) != NTOS_OK)
+    if (rtos_task_create_static(&control_tcb, "control", control_task, NULL, control_stack,
+                                STACK_WORDS, CONTROL_PRIORITY) != RTOS_OK)
     {
         for (;;)
         {
         }
     }
 
-    if (ntos_task_create_static(&parser_tcb, "parser", parser_task, NULL, parser_stack, STACK_WORDS,
-                                PARSER_PRIORITY) != NTOS_OK)
+    if (rtos_task_create_static(&parser_tcb, "parser", parser_task, NULL, parser_stack, STACK_WORDS,
+                                PARSER_PRIORITY) != RTOS_OK)
     {
         for (;;)
         {
         }
     }
 
-    if (ntos_task_create_static(&logger_tcb, "logger", logger_task, NULL, logger_stack, STACK_WORDS,
-                                LOGGER_PRIORITY) != NTOS_OK)
+    if (rtos_task_create_static(&logger_tcb, "logger", logger_task, NULL, logger_stack, STACK_WORDS,
+                                LOGGER_PRIORITY) != RTOS_OK)
     {
         for (;;)
         {
         }
     }
 
-    ntos_start(&control_tcb);
+    rtos_start(&control_tcb, board_cpu_clock_hz());
 
     for (;;)
     {

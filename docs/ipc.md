@@ -1,10 +1,10 @@
-# NTOS IPC
+# MyRTOS IPC
 
 ## 1. Overview
 
 IPC ở đây không chỉ là "truyền dữ liệu giữa các task" — nó là cơ chế đồng
 bộ hoá: cho phép một task chờ một điều kiện do task khác (hoặc ISR) tạo ra,
-mà không cần busy-wait. NTOS hiện có hai cơ chế:
+mà không cần busy-wait. MyRTOS hiện có hai cơ chế:
 
 ```text
 Semaphore -> bao hieu / dong bo (mot token co hay khong)
@@ -35,10 +35,10 @@ Semaphore S1: Task A wait, Task B wait
 Semaphore S2: Task C wait
 ```
 
-Khi `ntos_sem_give(&S1)` chạy, nó chỉ cần biết một điều: **ai đang chờ đúng
+Khi `rtos_sem_give(&S1)` chạy, nó chỉ cần biết một điều: **ai đang chờ đúng
 S1** — không phải "có task nào đang BLOCKED trong toàn hệ thống không".
 Đây là lý do mỗi object IPC tự giữ một wait list riêng
-(`ntos_semaphore_t::waiting_tasks`, `ntos_queue_t::waiting_receivers`/
+(`rtos_semaphore_t::waiting_tasks`, `rtos_queue_t::waiting_receivers`/
 `waiting_senders`):
 
 ```text
@@ -58,8 +58,8 @@ hệ mà `block_reason` (chỉ phân biệt *loại* IPC, xem
 TCB có hai node list độc lập:
 
 ```c
-ntos_list_item_t ready_item;  /* node trong ready_lists[priority] */
-ntos_list_item_t wait_item;   /* node trong wait list cua sem/queue */
+rtos_list_item_t ready_item;  /* node trong ready_lists[priority] */
+rtos_list_item_t wait_item;   /* node trong wait list cua sem/queue */
 ```
 
 ```text
@@ -68,7 +68,7 @@ READY/RUNNING              BLOCKED vi IPC
   wait_item  -> khong gan     wait_item  -> wait list cua sem/queue
 ```
 
-Một `ntos_list_item_t` (intrusive, xem [`scheduler.md`](scheduler.md) mục
+Một `rtos_list_item_t` (intrusive, xem [`scheduler.md`](scheduler.md) mục
 3) chỉ có đúng một cặp `next`/`previous`, nên chỉ có thể thuộc **một** list
 tại một thời điểm. Ready list và wait list là hai vai trò quản lý hoàn toàn
 khác nhau — "task này có được scheduler chọn không" và "task này đang chờ
@@ -79,16 +79,16 @@ rõ ràng. Tách thành `ready_item` và `wait_item` giải quyết đúng vấn
 mỗi node là "vé tham gia" của đúng một list, độc lập với node còn lại.
 
 Tại một thời điểm, đúng một trong hai node đang gắn vào một list — không
-bao giờ cả hai cùng lúc; đây là bất biến `NTOS_ASSERT` ở cả
-`ntos_task_block_current()` và `ntos_task_make_ready()` (mục 6).
+bao giờ cả hai cùng lúc; đây là bất biến `RTOS_ASSERT` ở cả
+`rtos_task_block_current()` và `rtos_task_make_ready()` (mục 6).
 
 ## 4. Semaphore
 
-`ntos_semaphore_t` (`include/ntos/ntos_sem.h`) chỉ có ba field: `count`
+`rtos_semaphore_t` (`kernel/include/rtos.h`) chỉ có ba field: `count`
 (số token hiện có), `max_count` (giới hạn trên), và `waiting_tasks`.
 
 ```text
-ntos_sem_take(sem, timeout)
+rtos_sem_take(sem, timeout)
    |
    +-> count > 0        -> count--, return OK
    |
@@ -103,7 +103,7 @@ ntos_sem_take(sem, timeout)
 ```
 
 ```text
-ntos_sem_give(sem)
+rtos_sem_give(sem)
    |
    +-> co waiter trong waiting_tasks
    |      -> chon waiter priority cao nhat, make_ready() truc tiep
@@ -113,9 +113,9 @@ ntos_sem_give(sem)
           -> count < max_count ? count++ : ERR_RESOURCE_FULL
 ```
 
-Điểm đáng chú ý nhất: `ntos_sem_give()` dùng **direct handoff** — nếu có
+Điểm đáng chú ý nhất: `rtos_sem_give()` dùng **direct handoff** — nếu có
 waiter, token được giao thẳng cho waiter đó (chỉ gọi
-`ntos_task_make_ready()`), `count` không hề bị đụng vào. Lý do: nếu vừa
+`rtos_task_make_ready()`), `count` không hề bị đụng vào. Lý do: nếu vừa
 tăng `count` vừa đồng thời wake waiter, cùng một token sẽ bị tính hai lần —
 một lần nằm trong `count`, một lần đã trao cho waiter — mở đường cho một
 `take()` khác cướp nhầm phần chưa thuộc về nó. Direct handoff đảm bảo một
@@ -124,7 +124,7 @@ vào `count` hay đi thẳng vào tay một waiter.
 
 ## 5. Queue
 
-`ntos_queue_t` (`include/ntos/ntos_queue.h`) là một ring buffer tĩnh
+`rtos_queue_t` (`kernel/include/rtos.h`) là một ring buffer tĩnh
 (`storage`, `item_size`, `capacity`, `read_index`, `write_index`, `count`),
 cộng **hai** wait list riêng: `waiting_receivers` và `waiting_senders`.
 
@@ -135,7 +135,7 @@ gộp chung một list sẽ không phân biệt được nên wake ai khi chỉ 
 hai điều kiện đó thay đổi.
 
 ```text
-ntos_queue_receive()                    ntos_queue_send()
+rtos_queue_receive()                    rtos_queue_send()
    |                                       |
    +-> count > 0 -> doc item, count--      +-> count < capacity -> ghi item, count++
    |      (co the wake 1 sender)           |      (co the wake 1 receiver)
@@ -156,7 +156,7 @@ ring buffer) không thể "giao tay" giống một token đếm được.
 
 ## 6. Blocking and Wake-Up
 
-Semaphore và queue dùng chung đúng hai helper (`kernel/ntos_task.c`):
+Semaphore và queue dùng chung đúng hai helper (`kernel/src/task.c`):
 
 ```text
 Block (RUNNING -> BLOCKED)          Wake (BLOCKED -> READY)
@@ -165,25 +165,25 @@ Block (RUNNING -> BLOCKED)          Wake (BLOCKED -> READY)
   state = BLOCKED                     state = READY
 ```
 
-`ntos_task_block_current()`/`ntos_task_make_ready()` chỉ đổi state và list
+`rtos_task_block_current()`/`rtos_task_make_ready()` chỉ đổi state và list
 membership — chúng **không** tự tạo critical section và **không** tự
 request PendSV; caller (semaphore/queue) tự bọc critical section quanh
 chúng và tự request PendSV sau khi rời critical section, cùng quy ước với
-`ntos_delay()` ([`scheduler.md`](scheduler.md) mục 7).
+`rtos_delay()` ([`scheduler.md`](scheduler.md) mục 7).
 
 Sau khi một task được wake, việc request PendSV có cần thiết hay không phụ
 thuộc priority: nếu waiter vừa được wake có priority cao hơn task đang
 chạy, tập hợp task READY vừa thay đổi theo cách scheduler cần biết ngay —
 nên PendSV được request để scheduler đánh giá lại. Thuật toán chọn waiter
-theo priority và chi tiết `ntos_scheduler_select_next()` không nhắc lại ở
+theo priority và chi tiết `rtos_scheduler_select_next()` không nhắc lại ở
 đây — xem [`scheduler.md`](scheduler.md).
 
 ## 7. IPC from ISR
 
-`ntos_sem_give_from_isr()`/`ntos_queue_send_from_isr()` tồn tại vì ISR có
+`rtos_sem_give_from_isr()`/`rtos_queue_send_from_isr()` tồn tại vì ISR có
 một ràng buộc tuyệt đối: **không được block**. Timeout không có ý nghĩa
 trong ngữ cảnh ISR — nó chỉ thực hiện đúng phần "give/send không chờ",
-không bao giờ gọi `ntos_task_block_current()`.
+không bao giờ gọi `rtos_task_block_current()`.
 
 ```text
 ISR
@@ -202,7 +202,7 @@ PendSV chay (neu duoc request) -> scheduler chon lai
 ```
 
 Một khác biệt với đường task-context: biến thể `_from_isr` phải kiểm tra
-`ntos_scheduler_running` trước khi so priority với `ntos_current_tcb` — vì
+`rtos_scheduler_running` trước khi so priority với `rtos_current_tcb` — vì
 ISR có thể fire trước khi task đầu tiên từng được chọn, lúc đó chưa có
 "task hiện tại" hợp lệ nào để so sánh. Context switch thật **không** xảy ra
 ngay trong ISR — nó chỉ được request; việc chuyển CPU thật sự vẫn đợi tới

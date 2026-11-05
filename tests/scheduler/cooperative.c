@@ -1,19 +1,19 @@
 /*
- * TEST-ONLY: include header nội bộ kernel để dùng NTOS_ASSERT trực tiếp
+ * TEST-ONLY: include header nội bộ kernel để dùng RTOS_ASSERT trực tiếp
  * kiểm tra invariant (local_marker), đúng ngoại lệ cho phép ở
- * NTOS_CODING_CONVENTION.md mục 2.4.
+ * RTOS_CODING_CONVENTION.md mục 2.4.
  */
-#include <ntos/ntos.h>
-#include <board.h>
-#include "ntos_assert_internal.h"
+#include <rtos.h>
+#include <bsp.h>
+#include "kernel_internal.h"
 #include <stddef.h>
 #include <stdint.h>
 
 #define STACK_WORDS ((size_t)64U)
 #define TOGGLE_EVERY 50000U
 
-static ntos_tcb_t led0_task_tcb;
-static ntos_tcb_t led1_task_tcb;
+static rtos_tcb_t led0_task_tcb;
+static rtos_tcb_t led1_task_tcb;
 static _Alignas(8) uint32_t led0_task_stack[STACK_WORDS];
 static _Alignas(8) uint32_t led1_task_stack[STACK_WORDS];
 
@@ -34,9 +34,9 @@ static void led0_task(void *argument)
             board_led_toggle(BOARD_LED_D0);
         }
 
-        NTOS_ASSERT(local_marker == 0xA0A0A0A0U);
+        RTOS_ASSERT(local_marker == 0xA0A0A0A0U);
 
-        ntos_yield();
+        rtos_yield();
     }
 }
 
@@ -53,35 +53,35 @@ static void led1_task(void *argument)
             board_led_toggle(BOARD_LED_D1);
         }
 
-        NTOS_ASSERT(local_marker == 0xB1B1B1B1U);
+        RTOS_ASSERT(local_marker == 0xB1B1B1B1U);
 
-        ntos_yield();
+        rtos_yield();
     }
 }
 
 int main(void)
 {
-    ntos_status_t status_led0;
-    ntos_status_t status_led1;
+    rtos_status_t status_led0;
+    rtos_status_t status_led1;
 
     board_init();
-    /* ntos_init() phải gọi trước khi tạo task bất kỳ nào - nó init
-     * ready_lists[] mà ntos_task_create_static() sẽ đưa task mới vào ngay. */
-    ntos_init();
+    /* rtos_init() phải gọi trước khi tạo task bất kỳ nào - nó init
+     * ready_lists[] mà rtos_task_create_static() sẽ đưa task mới vào ngay. */
+    rtos_init();
 
-    status_led0 = ntos_task_create_static(&led0_task_tcb, "led0", led0_task, NULL,
+    status_led0 = rtos_task_create_static(&led0_task_tcb, "led0", led0_task, NULL,
         led0_task_stack, STACK_WORDS, 0U);
-    status_led1 = ntos_task_create_static(&led1_task_tcb, "led1", led1_task, NULL,
+    status_led1 = rtos_task_create_static(&led1_task_tcb, "led1", led1_task, NULL,
         led1_task_stack, STACK_WORDS, 0U);
 
-    if ((status_led0 != NTOS_OK) || (status_led1 != NTOS_OK))
+    if ((status_led0 != RTOS_OK) || (status_led1 != RTOS_OK))
     {
         for (;;)
         {
         }
     }
 
-    ntos_start(&led0_task_tcb);
+    rtos_start(&led0_task_tcb, board_cpu_clock_hz());
 
     for (;;)
     {

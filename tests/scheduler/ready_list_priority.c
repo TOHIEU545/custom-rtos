@@ -14,21 +14,20 @@
  *      nhau mỗi khi cả 2 cùng READY - kiểm qua g_task_a_run_count vẫn tăng dù
  *      task_b vừa mới resume.
  */
-#include <ntos/ntos.h>
-#include <board.h>
-#include <uart.h>
+#include <rtos.h>
+#include <bsp.h>
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
 
 #define STACK_WORDS ((size_t)64U)
-#define HIGH_PRIORITY ((ntos_priority_t)3U)
-#define LOW_PRIORITY ((ntos_priority_t)1U)
+#define HIGH_PRIORITY ((rtos_priority_t)3U)
+#define LOW_PRIORITY ((rtos_priority_t)1U)
 #define TASK_B_DELAY_TICKS 300U
 
-static ntos_tcb_t task_a_tcb;
-static ntos_tcb_t task_b_tcb;
-static ntos_tcb_t task_low_tcb;
+static rtos_tcb_t task_a_tcb;
+static rtos_tcb_t task_b_tcb;
+static rtos_tcb_t task_low_tcb;
 static _Alignas(8) uint32_t task_a_stack[STACK_WORDS];
 static _Alignas(8) uint32_t task_b_stack[STACK_WORDS];
 static _Alignas(8) uint32_t task_low_stack[STACK_WORDS];
@@ -62,7 +61,7 @@ static void task_b(void *argument)
 
     for (;;)
     {
-        ntos_delay(TASK_B_DELAY_TICKS);
+        rtos_delay(TASK_B_DELAY_TICKS);
 
         /* B: task_a phải vẫn được chạy trong lúc task_b đang BLOCKED. */
         uart_write_pass_fail("same_priority_round_robin_a_ran", g_task_a_run_count > 0U);
@@ -88,28 +87,28 @@ static void task_low(void *argument)
 
 int main(void)
 {
-    ntos_status_t status_a;
-    ntos_status_t status_b;
-    ntos_status_t status_low;
+    rtos_status_t status_a;
+    rtos_status_t status_b;
+    rtos_status_t status_low;
 
     board_init();
-    ntos_init();
+    rtos_init();
 
-    status_a = ntos_task_create_static(&task_a_tcb, "task_a", task_a, NULL,
+    status_a = rtos_task_create_static(&task_a_tcb, "task_a", task_a, NULL,
         task_a_stack, STACK_WORDS, HIGH_PRIORITY);
-    status_b = ntos_task_create_static(&task_b_tcb, "task_b", task_b, NULL,
+    status_b = rtos_task_create_static(&task_b_tcb, "task_b", task_b, NULL,
         task_b_stack, STACK_WORDS, HIGH_PRIORITY);
-    status_low = ntos_task_create_static(&task_low_tcb, "task_low", task_low, NULL,
+    status_low = rtos_task_create_static(&task_low_tcb, "task_low", task_low, NULL,
         task_low_stack, STACK_WORDS, LOW_PRIORITY);
 
-    if ((status_a != NTOS_OK) || (status_b != NTOS_OK) || (status_low != NTOS_OK))
+    if ((status_a != RTOS_OK) || (status_b != RTOS_OK) || (status_low != RTOS_OK))
     {
         for (;;)
         {
         }
     }
 
-    ntos_start(&task_a_tcb);
+    rtos_start(&task_a_tcb, board_cpu_clock_hz());
 
     for (;;)
     {

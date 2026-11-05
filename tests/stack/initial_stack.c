@@ -1,11 +1,9 @@
 /**
  * @file initial_stack.c
- * @brief Test đơn giản cho ntos_task_create_static().
+ * @brief Test đơn giản cho rtos_task_create_static().
  */
 
-#include <ntos/ntos.h>
-#include <ntos/ntos_config_default.h>
-#include <ntos/ntos_task.h>
+#include <rtos.h>
 
 #include <stddef.h>
 #include <stdint.h>
@@ -14,7 +12,7 @@
 #define TEST_FRAME_WORDS 16U
 #define TEST_STACK_FILL  0xA5A5A5A5U
 
-static ntos_tcb_t test_tcb;
+static rtos_tcb_t test_tcb;
 static uint32_t test_stack[TEST_STACK_WORDS] __attribute__((aligned(8)));
 static uint32_t test_argument = 0x12345678U;
 
@@ -43,7 +41,7 @@ static void test_task(void *argument)
 
 int main(void)
 {
-    ntos_status_t status;
+    rtos_status_t status;
     uint32_t *frame;
     size_t i;
 
@@ -51,15 +49,15 @@ int main(void)
     test_failures = 0U;
     test_failed_line = 0U;
 
-    /* ntos_init() phải gọi trước khi tạo task bất kỳ nào - nó init
-     * ready_lists[] mà ntos_task_create_static() sẽ đưa task mới vào ngay. */
-    ntos_init();
+    /* rtos_init() phải gọi trước khi tạo task bất kỳ nào - nó init
+     * ready_lists[] mà rtos_task_create_static() sẽ đưa task mới vào ngay. */
+    rtos_init();
 
     /*
      * test_tcb là biến static nên ban đầu toàn bộ field bằng 0.
-     * NTOS_TASK_UNUSED cũng bằng 0.
+     * RTOS_TASK_UNUSED cũng bằng 0.
      */
-    status = ntos_task_create_static(
+    status = rtos_task_create_static(
         &test_tcb,
         "test",
         test_task,
@@ -68,7 +66,7 @@ int main(void)
         TEST_STACK_WORDS,
         1U);
 
-    TEST_ASSERT(status == NTOS_OK);
+    TEST_ASSERT(status == RTOS_OK);
 
     /* Kiểm tra metadata của TCB. */
     TEST_ASSERT(test_tcb.stack_low == test_stack);
@@ -82,7 +80,7 @@ int main(void)
     TEST_ASSERT(test_tcb.entry == test_task);
     TEST_ASSERT(test_tcb.argument == &test_argument);
     TEST_ASSERT(test_tcb.priority == 1U);
-    TEST_ASSERT(test_tcb.state == NTOS_TASK_READY);
+    TEST_ASSERT(test_tcb.state == RTOS_TASK_READY);
 
     TEST_ASSERT(
         (((uintptr_t)test_tcb.stack_pointer & (uintptr_t)0x7U) == 0U));
@@ -130,7 +128,7 @@ int main(void)
     TEST_ASSERT(frame[14] == (uint32_t)(uintptr_t)test_task);
     TEST_ASSERT(frame[15] == 0x01000000U);
 
-#if NTOS_ENABLE_STACK_FILL
+#if RTOS_ENABLE_STACK_FILL
     /* Phần stack chưa dùng phải giữ fill pattern. */
     for (i = 0U; i < TEST_STACK_WORDS - TEST_FRAME_WORDS; ++i)
     {
@@ -144,7 +142,7 @@ int main(void)
      * Test tạo lại cùng TCB.
      * TCB hiện đã ở trạng thái READY nên phải bị từ chối.
      */
-    status = ntos_task_create_static(
+    status = rtos_task_create_static(
         &test_tcb,
         "test-again",
         test_task,
@@ -153,7 +151,7 @@ int main(void)
         TEST_STACK_WORDS,
         1U);
 
-    TEST_ASSERT(status == NTOS_ERR_INVALID_STATE);
+    TEST_ASSERT(status == RTOS_ERR_INVALID_STATE);
 
     test_finished = 1U;
 

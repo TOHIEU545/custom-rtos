@@ -32,10 +32,10 @@ phải tiếp tục chạy đúng từ chỗ nó dừng — cùng giá trị reg
 như thể nó chưa từng bị gián đoạn. Task B không "biết" CPU vừa chạy việc
 khác trong lúc nó BLOCKED hoặc bị preempt.
 
-Tài liệu này giải thích chính xác NTOS làm điều đó như thế nào trên
+Tài liệu này giải thích chính xác MyRTOS làm điều đó như thế nào trên
 Cortex-M3: phần nào phần cứng tự lo, phần nào software (kernel + port) phải
 tự tay lo, và tại sao thiết kế lại như vậy. Toàn bộ nội dung bám theo
-`port/cortex_m3/ntos_port.c` và `kernel/ntos_task.c`/`ntos_kernel.c` hiện
+`port/ARM/cortex-m3/rtos_port.c` và `kernel/src/task.c`/`kernel/src/core.c` hiện
 tại.
 
 ## 2. CPU Context
@@ -57,7 +57,7 @@ software.
 | PC (R15) | Địa chỉ instruction đang chạy | Hardware (exception entry) |
 | xPSR | Cờ trạng thái, Thumb bit, exception number | Hardware (exception entry) |
 | R4-R11 | Callee-saved theo AAPCS, giữ local state sống lâu của hàm | Software (`PendSV_Handler`/`SVC_Handler`) |
-| SP (PSP) | Giá trị stack pointer của task | Không nằm trong 2 frame trên — NTOS tự lưu vào `tcb->stack_pointer` |
+| SP (PSP) | Giá trị stack pointer của task | Không nằm trong 2 frame trên — MyRTOS tự lưu vào `tcb->stack_pointer` |
 
 Nhóm đầu (hardware) và nhóm `R4-R11` (software) cộng lại đúng bằng toàn bộ
 context cần để resume một task — không thiếu, không thừa. Phần 4 và 5 giải
@@ -91,7 +91,7 @@ nhất của các hiểu sai về context switch.
   nào giữa A và B trong source code.
 - Vì không có lời gọi hàm, **không có prologue/epilogue nào được sinh ra**
   để bảo toàn context theo AAPCS. Không thể dựa vào calling convention thông
-  thường để lo việc này — RTOS (ở đây là NTOS) phải **chủ động** save toàn
+  thường để lo việc này — RTOS (ở đây là MyRTOS) phải **chủ động** save toàn
   bộ context của A và restore toàn bộ context của B bằng tay.
 
 Điểm dễ hiểu sai nhất: AAPCS quy định caller-saved/callee-saved là quy ước
@@ -104,13 +104,13 @@ nhất của các hiểu sai về context switch.
   hardware tự lưu trùng khớp với tập caller-saved của AAPCS.
 - Nhóm **callee-saved** (R4-R11) đại diện cho local state đang sống của
   task tại thời điểm nó bị ngắt — hardware không biết và không tự lưu nhóm
-  này. NTOS phải tự lưu chúng trong `PendSV_Handler` (phần 5), nếu không
+  này. MyRTOS phải tự lưu chúng trong `PendSV_Handler` (phần 5), nếu không
   task bị preempt sẽ mất giá trị local variable đang giữ trong các register
   đó.
 
 Nói cách khác: exception hardware frame gánh đúng phần AAPCS gọi là
 caller-saved (cộng thêm state cần cho việc return), còn phần callee-saved
-theo AAPCS thì NTOS phải tự gánh bằng software trong PendSV.
+theo AAPCS thì MyRTOS phải tự gánh bằng software trong PendSV.
 
 ## 4. Cortex-M3 Exception Entry
 
@@ -139,7 +139,7 @@ riêng của task đang chạy. Sau khi stacking xong, CPU tự chuyển sang Ha
 mode và tự chuyển sang dùng **MSP** để chạy handler (phần 6).
 
 Đây là hành vi kiến trúc chuẩn của Cortex-M3 (ARMv7-M), không phải lựa chọn
-của NTOS: mọi chương trình chạy trên lõi này đều nhận đúng 8 word này khi
+của MyRTOS: mọi chương trình chạy trên lõi này đều nhận đúng 8 word này khi
 exception xảy ra.
 
 Tại sao hardware chỉ push đúng 8 register này mà không phải toàn bộ? Vì đây
@@ -161,14 +161,14 @@ bình thường.
 Phần hardware **không** tự lưu: `R4-R11`. Theo AAPCS đây là các
 callee-saved register — quy ước đó chỉ có nghĩa khi có một "callee" chủ
 động lưu chúng; nhưng exception là sự kiện bất đồng bộ, không có callee
-nào cả, nên **không ai** tự lưu nhóm này nếu NTOS không tự làm.
+nào cả, nên **không ai** tự lưu nhóm này nếu MyRTOS không tự làm.
 
 Nếu bỏ qua bước này, một task bị preempt giữa chừng (đang giữ giá trị quan
 trọng trong R4-R11, ví dụ một loop counter hay con trỏ trung gian) sẽ mất
 trắng các giá trị đó khi task khác chạy và ghi đè lên cùng những register
 vật lý đó — task khi resume sẽ chạy tiếp với dữ liệu sai.
 
-Vì vậy `PendSV_Handler` (`port/cortex_m3/ntos_port.c`) tự tay làm đúng việc
+Vì vậy `PendSV_Handler` (`port/ARM/cortex-m3/rtos_port.c`) tự tay làm đúng việc
 đó, ngay ở đầu handler — nửa đầu của hàm (nửa "save"):
 
 ```c
@@ -178,9 +178,9 @@ __attribute__((naked)) void PendSV_Handler(void)
         "mrs    r0, psp\n"                                  /* Lấy PSP của task đang chạy, lúc này PSP đang trỏ vào R0 trong exception frame */
         "stmdb  r0!, {r4-r11}\n"                            /* Lưu R4-R11 đồng mỗi lần lưu giảm PSP 32 bit (4 byte) */
 
-        "ldr    r1, =ntos_current_tcb\n"                    /* r1 = &ntos_current_tcb */
-        "ldr    r2, [r1]\n"                                 /* r2 = ntos_current_tcb = địa chỉ TCB */
-        "str    r0, [r2]\n"                                 /* ntos_current_tcb->stack_pointer = r0 */
+        "ldr    r1, =rtos_current_tcb\n"                    /* r1 = &rtos_current_tcb */
+        "ldr    r2, [r1]\n"                                 /* r2 = rtos_current_tcb = địa chỉ TCB */
+        "str    r0, [r2]\n"                                 /* rtos_current_tcb->stack_pointer = r0 */
         /* ... phần chọn task kế tiếp + restore, xem mục 11 ... */
     );
 }
@@ -221,7 +221,7 @@ high address
 
 `tcb->stack_pointer` luôn trỏ vào đáy của toàn bộ frame 16 word này (slot
 R4) mỗi khi task không phải RUNNING — đây chính là giá trị mà
-`ntos_scheduler_select_next()`/`PendSV_Handler` dùng để restore task.
+`rtos_scheduler_select_next()`/`PendSV_Handler` dùng để restore task.
 
 ## 6. MSP and PSP
 
@@ -233,10 +233,10 @@ Cortex-M3 có hai stack pointer vật lý riêng biệt, chỉ một trong hai l
 - **PSP** (Process Stack Pointer) — dùng riêng cho code chạy ở Thread mode,
   nếu được cấu hình dùng.
 
-NTOS dùng đúng mô hình chuẩn cho RTOS trên Cortex-M3: **task chạy Thread
+MyRTOS dùng đúng mô hình chuẩn cho RTOS trên Cortex-M3: **task chạy Thread
 mode và dùng PSP; mọi exception handler (SVC, PendSV, SysTick) chạy Handler
 mode và dùng MSP**. MSP được CPU tự nạp từ word đầu tiên của vector table
-(`_estack`, tức đỉnh RAM — xem `bsp/stm32f10x/linker/stm32f10x.ld`) ngay lúc
+(`_estack`, tức đỉnh RAM — xem `boards/STM32F103/linker.ld`) ngay lúc
 reset, trước khi `main()` chạy.
 
 Lý do thiết kế này tốt cho một RTOS:
@@ -251,11 +251,11 @@ Lý do thiết kế này tốt cho một RTOS:
   tránh việc một stack task hỏng kéo theo cả handler dùng chung stack đó bị
   hỏng theo.
 
-NTOS không thao tác trực tiếp lên `CONTROL` register ở bất kỳ đâu trong
+MyRTOS không thao tác trực tiếp lên `CONTROL` register ở bất kỳ đâu trong
 source. Việc CPU dùng PSP sau khi return về Thread mode được quyết định
 hoàn toàn bởi giá trị `EXC_RETURN` nạp vào `LR` trước khi exception return
 (phần 7): `EXC_RETURN = 0xFFFFFFFD` yêu cầu CPU return về Thread mode và
-dùng PSP. NTOS chỉ cần nạp đúng giá trị này vào LR — không tự set thêm bất
+dùng PSP. MyRTOS chỉ cần nạp đúng giá trị này vào LR — không tự set thêm bất
 kỳ register nào khác.
 
 ## 7. EXC_RETURN
@@ -266,18 +266,18 @@ bình thường như function call — nó nạp một giá trị đặc biệt 
 mã lệnh cho CPU biết phải làm gì khi handler thực hiện exception return
 (bằng `bx lr` với giá trị này).
 
-`SVC_Handler` trong NTOS (`port/cortex_m3/ntos_port.c`) nạp cứng một giá trị
+`SVC_Handler` trong MyRTOS (`port/ARM/cortex-m3/rtos_port.c`) nạp cứng một giá trị
 cụ thể trước khi return — đây là toàn bộ handler, không rút gọn:
 
 ```c
 __attribute__((naked)) void SVC_Handler(void)
 {
-    __asm volatile("ldr   r0, =ntos_current_tcb\n"          /* r0 = &ntos_current_tcb */
-                   "ldr   r0, [r0]\n"                       /* r0 = ntos_current_tcb = địa chỉ TCB */
-                   "ldr   r0, [r0]\n"                       /* r0 = ntos_current_tcb->stack_pointer */
+    __asm volatile("ldr   r0, =rtos_current_tcb\n"          /* r0 = &rtos_current_tcb */
+                   "ldr   r0, [r0]\n"                       /* r0 = rtos_current_tcb = địa chỉ TCB */
+                   "ldr   r0, [r0]\n"                       /* r0 = rtos_current_tcb->stack_pointer */
                    "ldmia r0!, {r4-r11}\n"                  /* R4-R11 được restore  */
                    "msr   psp, r0\n"                        /* PSP = dau hardware frame (slot R0) */
-                   "ldr   r1, =ntos_scheduler_running\n"    /* Chi bao scheduler "running" SAU KHI PSP da hop le - */
+                   "ldr   r1, =rtos_scheduler_running\n"    /* Chi bao scheduler "running" SAU KHI PSP da hop le - */
                    "movs  r2, #1\n"                         /* neu SysTick pend PendSV som hon diem nay (vd. xen giua */
                    "strb  r2, [r1]\n"                       /* __enable_irq() va svc), PendSV_Handler van thay PSP dung. */
                    "ldr   lr, =0xFFFFFFFD\n"                /* EXC_RETURN: ve Thread mode, dung PSP */
@@ -298,7 +298,7 @@ return với đúng giá trị đó.
 | --- | --- |
 | `0xFFFFFFF1` | Return về Handler mode, dùng MSP |
 | `0xFFFFFFF9` | Return về Thread mode, dùng MSP |
-| `0xFFFFFFFD` | Return về Thread mode, dùng PSP — giá trị NTOS dùng |
+| `0xFFFFFFFD` | Return về Thread mode, dùng PSP — giá trị MyRTOS dùng |
 
 Hai bit quan trọng nhất trong các giá trị này:
 
@@ -320,7 +320,7 @@ bit 2 chỉ định, khôi phục PC/xPSR/LR/R12/R0-R3, và chuyển sang mode/s
 pointer theo bit 3/bit 2.
 
 `PendSV_Handler` **không** hardcode giá trị EXC_RETURN nào — nó `push {r3,
-lr}` trước khi gọi `ntos_scheduler_select_next()` (một hàm C, sẽ ghi đè LR
+lr}` trước khi gọi `rtos_scheduler_select_next()` (một hàm C, sẽ ghi đè LR
 qua `bl`), rồi `pop {r3, lr}` để lấy lại đúng giá trị EXC_RETURN mà CPU đã
 tự nạp vào LR lúc PendSV vừa được kích hoạt. Vì PendSV luôn ngắt một task
 đang chạy Thread mode/PSP, giá trị đó tự nhiên cũng là `0xFFFFFFFD` — nhưng
@@ -328,32 +328,32 @@ PendSV chỉ *bảo toàn* nó qua lệnh gọi hàm C ở giữa, không tự g
 
 ## 8. Why PendSV Is Used for Context Switching
 
-Đây là một **lựa chọn thiết kế của NTOS**: PendSV là nơi duy nhất NTOS thực
+Đây là một **lựa chọn thiết kế của MyRTOS**: PendSV là nơi duy nhất MyRTOS thực
 hiện context switch thật. Đây không phải điều bắt buộc với mọi hệ thống
 chạy Cortex-M3 — nhưng là lựa chọn được khuyến nghị rộng rãi cho RTOS trên
 kiến trúc này, vì các lý do sau:
 
 - **PendSV có thể cấu hình priority thấp nhất** trong hệ thống
-  (`ntos_port_start_tick()` gọi `NVIC_SetPriority(PendSV_IRQn, ...)` với giá
-  trị thấp nhất có thể). Nhờ vậy, nếu một ISR ưu tiên cao hơn (SysTick, hoặc
+  (`rtos_port_start_tick()` ghi mức thấp nhất vào byte priority của PendSV).
+  Nhờ vậy, nếu một ISR ưu tiên cao hơn (SysTick, hoặc
   IRQ ngoại vi) đang cần xử lý, PendSV luôn nhường chỗ và chỉ thật sự chạy
   khi không còn exception nào ưu tiên cao hơn đang pending — context switch
   không bao giờ chen ngang một ISR quan trọng đang dở dang.
-- **Yêu cầu context switch và thực hiện context switch được NTOS tách rời**:
-  bất kỳ chỗ nào cần task khác chạy (SysTick mỗi tick, `ntos_yield()`, hoặc
-  `ntos_sem_give_from_isr()`/`ntos_queue_send_from_isr()` khi wake một task
+- **Yêu cầu context switch và thực hiện context switch được MyRTOS tách rời**:
+  bất kỳ chỗ nào cần task khác chạy (SysTick mỗi tick, `rtos_yield()`, hoặc
+  `rtos_sem_give_from_isr()`/`rtos_queue_send_from_isr()` khi wake một task
   priority cao hơn) chỉ *pend* PendSV (`SCB->ICSR = SCB_ICSR_PENDSVSET_Msk`)
   — không tự thực hiện switch tại chỗ.
-- Nhờ tách rời như vậy, NTOS gom toàn bộ logic save/restore context về đúng
+- Nhờ tách rời như vậy, MyRTOS gom toàn bộ logic save/restore context về đúng
   **một nơi duy nhất** (`PendSV_Handler`) thay vì lặp lại ở nhiều ISR khác
-  nhau — đây là bất biến kiến trúc mà NTOS chủ động duy trì (xem thêm mục
+  nhau — đây là bất biến kiến trúc mà MyRTOS chủ động duy trì (xem thêm mục
   14).
 
 Toàn bộ việc "request" đó, dù gọi từ đâu, đều chỉ là một hàm rất mỏng —
 không hề đụng vào PSP hay bất kỳ register CPU nào của task:
 
 ```c
-void ntos_port_request_context_switch(void)
+void rtos_port_request_context_switch(void)
 {
     SCB->ICSR = SCB_ICSR_PENDSVSET_Msk;
     __DSB();
@@ -372,27 +372,29 @@ Việc set priority thấp nhất cho PendSV cũng nằm gọn trong một hàm,
 lần duy nhất trước khi scheduler bắt đầu:
 
 ```c
-void ntos_port_start_tick(void)
+void rtos_port_start_tick(uint32_t cpu_clock_hz)
 {
-    /* PendSV phải là exception ưu tiên thấp nhất - không được chen ngang bất kỳ
-     * handler nào khác, context switch chỉ xảy ra khi không còn việc gì ưu tiên hơn. */
-    NVIC_SetPriority(PendSV_IRQn, (uint32_t)((1UL << __NVIC_PRIO_BITS) - 1UL));
+    uint32_t reload = cpu_clock_hz / RTOS_TICK_RATE_HZ;
 
-    /* SysTick_Config() tự set priority SysTick về thấp nhất (bằng PendSV) và bật
-     * TICKINT + ENABLE; trả về khác 0 nếu reload value vượt quá 24-bit của SysTick. */
-    NTOS_ASSERT(SysTick_Config(SystemCoreClock / NTOS_TICK_RATE_HZ) == 0U);
+    SCB->SHP[10] = UINT8_MAX;
+    SCB->SHP[11] = UINT8_MAX;
+    SysTick->LOAD = reload - 1U;
+    SysTick->VAL = 0U;
+    SysTick->CTRL = SysTick_CTRL_CLKSOURCE_Msk |
+                    SysTick_CTRL_TICKINT_Msk |
+                    SysTick_CTRL_ENABLE_Msk;
 }
 ```
 
-NTOS **không** tự save/restore context ngay trong `SysTick_Handler`.
-`SysTick_Handler` chỉ gọi `ntos_tick_handler()` (kernel) — tăng tick, đánh
+MyRTOS **không** tự save/restore context ngay trong `SysTick_Handler`.
+`SysTick_Handler` chỉ gọi `rtos_tick_handler()` (kernel) — tăng tick, đánh
 thức task hết delay, và — nếu cần — pend PendSV, không làm gì khác.
 
-`ntos_port_start_tick()` (mục trên) cấu hình **SysTick và PendSV cùng một
+`rtos_port_start_tick()` (mục trên) cấu hình **SysTick và PendSV cùng một
 mức priority thấp nhất**. Vì hai exception cùng priority không thể preempt
 lẫn nhau, PendSV — dù đã được pend từ bên trong `SysTick_Handler` — không
 thể chen vào chạy trước khi `SysTick_Handler` return; nó chỉ được CPU xử lý
-ngay sau đó qua tail-chaining. Vì vậy lý do NTOS không tự switch trực tiếp
+ngay sau đó qua tail-chaining. Vì vậy lý do MyRTOS không tự switch trực tiếp
 trong `SysTick_Handler` không nằm ở việc so sánh priority cao/thấp giữa hai
 exception này, mà là để **gom toàn bộ logic save/restore context về đúng
 một điểm duy nhất — `PendSV_Handler`** — thay vì lặp lại ở mọi ISR có thể
@@ -402,7 +404,7 @@ cần reschedule (SysTick, sem/queue `_from_isr`...).
 SysTick
    |
    v
-ntos_tick_handler()      (kernel, portable)
+rtos_tick_handler()      (kernel, portable)
    |
    v
 request PendSV            (SCB->ICSR = PENDSVSET)
@@ -417,7 +419,7 @@ PendSV chay khi khong con gi uu tien hon
 context switch that su xay ra o day
 ```
 
-Các ISR khác của IPC — `ntos_sem_give_from_isr()`, `ntos_queue_send_from_isr()`
+Các ISR khác của IPC — `rtos_sem_give_from_isr()`, `rtos_queue_send_from_isr()`
 — đi theo đúng flow tương tự: nếu wake một task priority cao hơn task hiện
 tại, chúng cũng chỉ request PendSV, không tự switch. Chi tiết thuật toán
 wake/priority nằm ở [`ipc.md`](ipc.md), không nhắc lại ở đây.
@@ -425,14 +427,14 @@ wake/priority nằm ở [`ipc.md`](ipc.md), không nhắc lại ở đây.
 ### Why ISRs Do Not Switch Context Directly
 
 Phần trên giải thích PendSV *được dùng như thế nào*. Phần này giải thích lý
-do sâu hơn: tại sao NTOS không cho phép bất kỳ ISR nào — kể cả ISR đang
+do sâu hơn: tại sao MyRTOS không cho phép bất kỳ ISR nào — kể cả ISR đang
 chạy ở priority cao — tự thực hiện context switch ngay tại chỗ, mà bắt buộc
 phải đi qua PendSV.
 
 Xét tình huống nesting đơn giản nhất có thể xảy ra: một task đang chạy, bị
 một IRQ priority thấp ngắt, rồi chính IRQ đó lại bị một IRQ priority cao hơn
 ngắt tiếp (đây là hành vi nesting chuẩn của NVIC trên Cortex-M3, không phải
-điều gì đặc biệt của NTOS):
+điều gì đặc biệt của MyRTOS):
 
 ```text
 Task A (Thread mode, PSP)
@@ -522,7 +524,7 @@ sai ở nhiều lớp cùng lúc:
   nhầm stack, dùng nhầm EXC_RETURN, resume nhầm mode, hoặc bỏ dở một ISR
   đang xử lý dữ liệu quan trọng (ví dụ đang thao tác dở một peripheral).
 
-Với PendSV, NTOS tránh hoàn toàn lớp vấn đề này bằng cách **trì hoãn switch**
+Với PendSV, MyRTOS tránh hoàn toàn lớp vấn đề này bằng cách **trì hoãn switch**
 tới đúng thời điểm không còn nesting nào nữa:
 
 ```text
@@ -585,7 +587,7 @@ hiện tại là bao nhiêu, và EXC_RETURN nào ứng với bước nào — th
 NVIC/Cortex-M3 tự quản lý việc đó như bình thường. Trì hoãn switch tới đúng
 lúc PendSV chạy (không còn nesting) loại bỏ hoàn toàn nhu cầu đó.
 
-Đây là bất biến cốt lõi mà NTOS chủ động thiết kế:
+Đây là bất biến cốt lõi mà MyRTOS chủ động thiết kế:
 
 > Một ISR có thể khiến một task khác trở thành READY, nhưng việc CPU thật
 > sự chuyển sang chạy task đó chỉ xảy ra bên trong `PendSV_Handler`.
@@ -593,11 +595,11 @@ lúc PendSV chạy (không còn nesting) loại bỏ hoàn toàn nhu cầu đó.
 | Hành động | Nơi thực hiện |
 | --- | --- |
 | Wake task (đổi state BLOCKED → READY) | ISR-safe API (`_from_isr`) / kernel |
-| Quyết định có cần reschedule hay không | Kernel / ISR-safe path (so priority với `ntos_current_tcb`) |
-| Request context switch | `ntos_port_request_context_switch()` — chỉ pend PendSV |
+| Quyết định có cần reschedule hay không | Kernel / ISR-safe path (so priority với `rtos_current_tcb`) |
+| Request context switch | `rtos_port_request_context_switch()` — chỉ pend PendSV |
 | Save/restore context CPU thật | Chỉ `PendSV_Handler`, không nơi nào khác |
 
-Đây là lựa chọn kiến trúc của NTOS, không phải điều Cortex-M3 bắt buộc —
+Đây là lựa chọn kiến trúc của MyRTOS, không phải điều Cortex-M3 bắt buộc —
 nhưng là pattern phổ biến và phù hợp cho RTOS trên kiến trúc này, chính vì
 nó loại bỏ hoàn toàn nhu cầu phải suy luận về nesting level tại nơi request
 switch: bất kể request tới từ đâu, tới từ độ sâu nesting nào, PendSV luôn
@@ -611,40 +613,40 @@ Task đầu tiên không thể được khởi động bằng flow context switc
 
 - CPU chưa chạy trong context của bất kỳ task nào — nó đang chạy `main()`
   bằng MSP, ở Thread mode nhưng chưa hề dùng PSP.
-- Không có "task hiện tại" nào để save — `ntos_current_tcb` trước đó là
+- Không có "task hiện tại" nào để save — `rtos_current_tcb` trước đó là
   `NULL`.
 - Không có exception frame thật nào của task để restore theo flow PendSV
   thông thường (task chưa từng bị interrupt lần nào).
 
-Vì vậy NTOS tách bootstrap thành hai bước rõ ràng: (1) tự dựng một **initial
+Vì vậy MyRTOS tách bootstrap thành hai bước rõ ràng: (1) tự dựng một **initial
 stack frame giả** trông giống hệt một exception frame thật (phần 10), rồi
 (2) dùng **SVC** — một exception có thể được kích hoạt chủ động bằng lệnh
 `svc` — để nhảy từ context "thường" của `main()` vào cơ chế exception,
 nơi handler có thể tự do nạp PSP và exception-return thẳng vào task đầu
 tiên.
 
-Flow thật theo source (`kernel/ntos_kernel.c`, `port/cortex_m3/ntos_port.c`):
+Flow thật theo source (`kernel/src/core.c`, `port/ARM/cortex-m3/rtos_port.c`):
 
 ```text
-ntos_start(first_task_tcb)
+rtos_start(first_task_tcb, cpu_clock_hz)
    |
-   |  (kernel/ntos_kernel.c)
-   |  gan ntos_current_tcb = first_task_tcb
+   |  (kernel/src/core.c)
+   |  gan rtos_current_tcb = first_task_tcb
    v
-ntos_port_start_tick()        set priority PendSV/SysTick, start SysTick
+rtos_port_start_tick(cpu_clock_hz)  set priority PendSV/SysTick, start SysTick
    |
    v
-ntos_port_start_scheduler()
+rtos_port_start_scheduler()
    |
    |  __enable_irq()
    |  svc 0                    <- chu dong kich hoat SVC exception
    v
-SVC_Handler (naked, port/cortex_m3/ntos_port.c)
+SVC_Handler (naked, port/ARM/cortex-m3/rtos_port.c)
    |
-   |  doc ntos_current_tcb->stack_pointer
+   |  doc rtos_current_tcb->stack_pointer
    |  ldmia r0!, {r4-r11}      restore software frame cua first task
    |  msr psp, r0              PSP tro dau hardware frame
-   |  ntos_scheduler_running = true
+   |  rtos_scheduler_running = true
    |  lr = 0xFFFFFFFD
    |  bx lr                    exception return
    v
@@ -654,10 +656,10 @@ CPU tu dong pop hardware frame (R0-R3, R12, LR, PC, xPSR) tu PSP
 Task entry bat dau chay o Thread mode, dung PSP
 ```
 
-`ntos_port_start_scheduler()` là toàn bộ phần "chủ động kích hoạt SVC":
+`rtos_port_start_scheduler()` là toàn bộ phần "chủ động kích hoạt SVC":
 
 ```c
-void ntos_port_start_scheduler(void)
+void rtos_port_start_scheduler(void)
 {
     __enable_irq();
 
@@ -669,7 +671,7 @@ void ntos_port_start_scheduler(void)
 
 Bật interrupt (`__enable_irq()`) trước khi phát `svc 0` là bắt buộc — nếu
 IRQ vẫn tắt, SysTick sẽ không bao giờ chạy dù đã được cấu hình ở
-`ntos_port_start_tick()`. `__builtin_unreachable()` xác nhận với compiler
+`rtos_port_start_tick()`. `__builtin_unreachable()` xác nhận với compiler
 rằng dòng đó không bao giờ thực thi được: `svc 0` nhảy hẳn sang
 `SVC_Handler`, và handler đó exception-return thẳng vào task đầu tiên chứ
 không quay lại đây. `SVC_Handler` đã được trích đầy đủ ở mục 7 — không lặp
@@ -682,14 +684,14 @@ tại thời điểm tạo task (phần 10), chứ không xảy ra tại runtime
 
 ## 10. Initial Task Stack Frame
 
-Một task vừa được tạo (`ntos_task_create_static()`, `kernel/ntos_task.c`)
-chưa từng chạy, nên không hề có context thật nào để restore. NTOS phải tự
+Một task vừa được tạo (`rtos_task_create_static()`, `kernel/src/task.c`)
+chưa từng chạy, nên không hề có context thật nào để restore. MyRTOS phải tự
 dựng một **synthetic context** — một stack frame giả, đúng layout với frame
 mà `SVC_Handler`/`PendSV_Handler` mong đợi khi restore — để khi được nạp,
 CPU tin rằng task này vừa mới bị exception ngắt, dù thực ra nó chưa từng
 chạy một instruction nào.
 
-Frame này có đúng **16 word** (`NTOS_TASK_FRAME_WORDS = 8 word hardware + 8
+Frame này có đúng **16 word** (`RTOS_TASK_FRAME_WORDS = 8 word hardware + 8
 word R4-R11`), được dựng từ đỉnh stack xuống:
 
 ```text
@@ -760,9 +762,9 @@ PendSV_Handler bat dau chay (Handler mode, MSP)
    |
    | mrs r0, psp                 r0 = dinh hardware frame cua A
    | stmdb r0!, {r4-r11}         software save: day R4-R11 xuong duoi
-   | ntos_current_tcb->stack_pointer = r0   (luu vao TCB cua A)
+   | rtos_current_tcb->stack_pointer = r0   (luu vao TCB cua A)
    |
-   | bl ntos_scheduler_select_next()   (kernel, C - chon TCB tiep theo)
+   | bl rtos_scheduler_select_next()   (kernel, C - chon TCB tiep theo)
    |
    | r0 = TCB_B->stack_pointer
    | ldmia r0!, {r4-r11}         software restore: nap R4-R11 cua B
@@ -785,17 +787,17 @@ __attribute__((naked)) void PendSV_Handler(void)
         "mrs    r0, psp\n"                                  /* Lấy PSP của task đang chạy, lúc này PSP đang trỏ vào R0 trong exception frame */
         "stmdb  r0!, {r4-r11}\n"                            /* Lưu R4-R11 đồng mỗi lần lưu giảm PSP 32 bit (4 byte) */
 
-        "ldr    r1, =ntos_current_tcb\n"                    /* r1 = &ntos_current_tcb */
-        "ldr    r2, [r1]\n"                                 /* r2 = ntos_current_tcb = địa chỉ TCB */
-        "str    r0, [r2]\n"                                 /* ntos_current_tcb->stack_pointer = r0 */
+        "ldr    r1, =rtos_current_tcb\n"                    /* r1 = &rtos_current_tcb */
+        "ldr    r2, [r1]\n"                                 /* r2 = rtos_current_tcb = địa chỉ TCB */
+        "str    r0, [r2]\n"                                 /* rtos_current_tcb->stack_pointer = r0 */
 
         "push   {r3, lr}\n"                                 /* Lưu EXC_RETURN trong lr và giữ MSP align 8 byte trước khi goin hàm C */
-        "bl     ntos_scheduler_select_next\n"               /* Gọi scheduler C để chon task tiếp theo; BL tạm ghi đè lr */
+        "bl     rtos_scheduler_select_next\n"               /* Gọi scheduler C để chon task tiếp theo; BL tạm ghi đè lr */
         "pop    {r3, lr}\n"                                 /* Khôi phục EXC_RETURN ban đầu vao lr sau khi scheduler return */
 
-        "ldr    r1, =ntos_current_tcb\n"                    /* r1 = &ntos_current_tcb (ntos_current_tcb có thể đã đổi sau hàm scheduler) */
-        "ldr    r2, [r1]\n"                                 /* r2 = ntos_current_tcb = địa chỉ TCB */
-        "ldr    r0, [r2]\n"                                 /* r0 = ntos_current_tcb->stack_pointer */
+        "ldr    r1, =rtos_current_tcb\n"                    /* r1 = &rtos_current_tcb (rtos_current_tcb có thể đã đổi sau hàm scheduler) */
+        "ldr    r2, [r1]\n"                                 /* r2 = rtos_current_tcb = địa chỉ TCB */
+        "ldr    r0, [r2]\n"                                 /* r0 = rtos_current_tcb->stack_pointer */
 
         "ldmia  r0!, {r4-r11}\n"                            /* R4-R11 được restore  */
         "msr    psp, r0\n"                                  /* PSP = dau hardware frame (slot R0) */
@@ -805,17 +807,17 @@ __attribute__((naked)) void PendSV_Handler(void)
 ```
 
 `push {r3, lr}` / `pop {r3, lr}` là chi tiết dễ bị bỏ sót nhưng bắt buộc:
-`bl ntos_scheduler_select_next` là một lời gọi hàm C thật sự, và theo AAPCS,
+`bl rtos_scheduler_select_next` là một lời gọi hàm C thật sự, và theo AAPCS,
 `bl` sẽ ghi địa chỉ return vào `LR` — tức ghi đè đúng giá trị EXC_RETURN mà
 `PendSV_Handler` cần giữ lại để `bx lr` ở cuối hàm hoạt động đúng. Vì vậy LR
 (cùng `r3` để giữ stack 8-byte-aligned trước khi gọi hàm C, theo AAPCS) phải
 được cất tạm trên MSP (`push`), rồi lấy lại (`pop`) ngay sau khi
-`ntos_scheduler_select_next()` return.
+`rtos_scheduler_select_next()` return.
 
 Hai giai đoạn tách bạch rõ ràng, không được nhầm lẫn:
 
 - **Hardware save/restore** — Cortex-M3 tự làm, xảy ra ở lúc exception entry
-  (save) và lúc `bx lr` với EXC_RETURN hợp lệ (restore). NTOS không viết
+  (save) và lúc `bx lr` với EXC_RETURN hợp lệ (restore). MyRTOS không viết
   code cho phần này.
 - **Software save/restore** — chỉ đúng 2 lệnh `stmdb`/`ldmia` cho R4-R11
   mỗi chiều, do chính `PendSV_Handler` viết tay. `PendSV_Handler` **không**
@@ -824,41 +826,41 @@ Hai giai đoạn tách bạch rõ ràng, không được nhầm lẫn:
 
 ## 12. Scheduler vs Context Switch
 
-Hai trách nhiệm này tách biệt hoàn toàn trong NTOS:
+Hai trách nhiệm này tách biệt hoàn toàn trong MyRTOS:
 
 - **Scheduler** — quyết định *task nào* sẽ chạy tiếp theo. Đây thuần là một
-  bài toán chọn lựa dựa trên priority/ready list (`ntos_scheduler_select_next()`,
-  `kernel/ntos_kernel.c`), không đụng tới bất kỳ register CPU nào.
+  bài toán chọn lựa dựa trên priority/ready list (`rtos_scheduler_select_next()`,
+  `kernel/src/core.c`), không đụng tới bất kỳ register CPU nào.
 - **Context switch** — thực sự save CPU state hiện tại và restore CPU state
-  của task được chọn (`PendSV_Handler`, `port/cortex_m3/ntos_port.c`).
+  của task được chọn (`PendSV_Handler`, `port/ARM/cortex-m3/rtos_port.c`).
 
-`PendSV_Handler` gọi `ntos_scheduler_select_next()` ở giữa — sau khi save
+`PendSV_Handler` gọi `rtos_scheduler_select_next()` ở giữa — sau khi save
 xong context của task cũ, trước khi restore context của task mới — nhưng
-bản thân hàm scheduler chỉ đọc/ghi `ntos_current_tcb` và các list nội bộ,
+bản thân hàm scheduler chỉ đọc/ghi `rtos_current_tcb` và các list nội bộ,
 hoàn toàn không biết PSP, R4-R11, hay EXC_RETURN là gì.
 
 Tách như vậy giúp `kernel/` giữ đúng nguyên tắc CPU-độc lập: toàn bộ kiến
 thức về "Cortex-M3 context switch làm việc thế nào" nằm gọn trong
-`port/cortex_m3/`, kernel chỉ cần gọi ra ngoài qua
-`ntos_port_request_context_switch()` mà không cần biết PendSV/PSP/EXC_RETURN
+`port/ARM/cortex-m3/`, kernel chỉ cần gọi ra ngoài qua
+`rtos_port_request_context_switch()` mà không cần biết PendSV/PSP/EXC_RETURN
 tồn tại.
 
 ## 13. TCB and Stack Pointer Contract
 
-Để context switch hoạt động, kernel và port chỉ cần thống nhất: TCB (`struct ntos_tcb`,
-`include/ntos/ntos_task.h`) phải lưu `stack_pointer` của task, và vị trí
+Để context switch hoạt động, kernel và port chỉ cần thống nhất: TCB (`struct rtos_tcb`,
+`kernel/include/rtos.h`) phải lưu `stack_pointer` của task, và vị trí
 (offset) của field đó trong struct phải cố định, port biết trước để đọc/ghi
 trực tiếp bằng assembly — không qua một accessor C nào, vì
 `PendSV_Handler`/`SVC_Handler` là hàm `naked`, không có function-call
 overhead để gọi getter/setter. Ngoài đúng field này, port không cần (và
 không được) biết gì thêm về phần còn lại của TCB.
 
-`port/cortex_m3/ntos_port.c` khẳng định điều này bằng compile-time
+`port/ARM/cortex-m3/rtos_port.c` khẳng định điều này bằng compile-time
 check:
 
 ```c
-_Static_assert(offsetof(struct ntos_tcb, stack_pointer) == 0U,
-               "stack_pointer phai la field dau tien trong struct ntos_tcb");
+_Static_assert(offsetof(struct rtos_tcb, stack_pointer) == 0U,
+               "stack_pointer phai la field dau tien trong struct rtos_tcb");
 ```
 
 `stack_pointer` phải là field **đầu tiên** vì đoạn assembly trong
@@ -870,7 +872,7 @@ assembly, `_Static_assert` này sẽ chặn build ngay tại compile-time thay v
 debug).
 
 Đây là ranh giới chặt nhất giữa hai module: port được phép "nhìn xuyên" vào
-đúng field này của TCB qua `kernel/internal/`, nhưng không có quyền gì khác
+đúng field này của TCB qua `kernel/`, nhưng không có quyền gì khác
 với phần còn lại của TCB hay với thiết kế task nói chung.
 
 ## 14. Context Switch Invariants
@@ -879,9 +881,9 @@ với phần còn lại của TCB hay với thiết kế task nói chung.
 | --- | --- |
 | Mỗi task có PSP/stack riêng | Cô lập lỗi giữa các task; context switch chỉ cần đổi giá trị PSP, không di chuyển dữ liệu |
 | `stack_pointer` luôn 8-byte aligned | Yêu cầu AAPCS cho stack tại điểm gọi hàm ngoài (function call boundary); Cortex-M3 exception entry cũng tự align 8 byte |
-| `stack_pointer` là field đầu tiên trong `ntos_tcb_t` | Assembly trong `SVC_Handler`/`PendSV_Handler` đọc/ghi trực tiếp qua offset 0, được khẳng định bằng `_Static_assert` |
+| `stack_pointer` là field đầu tiên trong `rtos_tcb_t` | Assembly trong `SVC_Handler`/`PendSV_Handler` đọc/ghi trực tiếp qua offset 0, được khẳng định bằng `_Static_assert` |
 | Initial stack frame phải khớp chính xác layout mà restore path mong đợi | Sai một word → nạp nhầm register hoặc PSP trỏ lệch, dẫn tới chạy sai hoặc fault ngay khi exception return |
-| PendSV là nơi duy nhất NTOS thực hiện context switch thật | Lựa chọn thiết kế của NTOS (mục 8) — mọi nơi khác chỉ được *request*, không tự switch |
+| PendSV là nơi duy nhất MyRTOS thực hiện context switch thật | Lựa chọn thiết kế của MyRTOS (mục 8) — mọi nơi khác chỉ được *request*, không tự switch |
 | Handler (SVC/PendSV/SysTick) luôn dùng MSP | Cô lập stack hệ thống khỏi stack của task đang chạy |
 | Task luôn dùng PSP (từ sau khi first task start) | Đảm bảo context switch chỉ cần thao tác trên PSP, không đụng MSP |
 | Software frame (R4-R11) + hardware frame (R0-R3,R12,LR,PC,xPSR) phải luôn đi cùng nhau | Hai phần này cộng lại mới là context đầy đủ; thiếu một phần task sẽ resume với state sai |
@@ -891,7 +893,7 @@ với phần còn lại của TCB hay với thiết kế task nói chung.
 **Task mới (chưa từng chạy):**
 
 ```text
-ntos_task_create_static()
+rtos_task_create_static()
    -> dung synthetic 16-word frame (muc 10)
    -> (chi voi first task) SVC
    -> SVC_Handler restore frame, msr psp, bx lr
@@ -904,7 +906,7 @@ ntos_task_create_static()
 exception xay ra (SysTick / yield / IPC wake)
    -> hardware save (R0-R3, R12, LR, PC, xPSR len PSP)
    -> PendSV_Handler software save (R4-R11)
-   -> ntos_scheduler_select_next() chon TCB tiep theo
+   -> rtos_scheduler_select_next() chon TCB tiep theo
    -> PendSV_Handler software restore (R4-R11 cua TCB moi)
    -> hardware restore (bx lr, EXC_RETURN = Thread mode + PSP)
    -> task tiep tuc chay dung tu diem no bi ngat

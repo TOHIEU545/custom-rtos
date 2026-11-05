@@ -33,7 +33,7 @@ fi
 # Terminal gọi lệnh này (vd: terminal tích hợp VSCode) cần rảnh cho
 # scripts/debug.sh, nên tự mở một terminal mới để chạy OpenOCD ở đó.
 if [[ "${ALREADY_SPAWNED}" -eq 0 ]] && command -v gnome-terminal >/dev/null 2>&1; then
-    exec gnome-terminal --title="ntos-openocd" -- "${SCRIPT_DIR}/debug-server.sh" "${SPAWNED_FLAG}"
+    exec gnome-terminal --title="MyRTOS OpenOCD" -- "${SCRIPT_DIR}/debug-server.sh" "${SPAWNED_FLAG}"
 fi
 
 if [[ "${ALREADY_SPAWNED}" -eq 0 ]]; then

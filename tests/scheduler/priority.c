@@ -1,7 +1,7 @@
 /*
  * Kiểm tra fixed-priority scheduler O(n).
  *
- * 3 task CPU-bound, không gọi ntos_yield()/ntos_delay():
+ * 3 task CPU-bound, không gọi rtos_yield()/rtos_delay():
  *   - led0_task  (priority cao)  : toggle LED0.
  *   - uart_task  (priority cao)  : gửi counter qua UART, cùng in kết quả
  *                                  starvation của led1_task.
@@ -13,22 +13,21 @@
  * scheduler còn là round-robin phẳng (chưa áp dụng priority), LED1 sẽ toggle
  * đều như LED0 và dòng "led1_starved" sẽ báo FAIL.
  */
-#include <ntos/ntos.h>
-#include <board.h>
-#include <uart.h>
+#include <rtos.h>
+#include <bsp.h>
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
 
 #define STACK_WORDS ((size_t)64U)
-#define HIGH_PRIORITY ((ntos_priority_t)5U)
-#define LOW_PRIORITY ((ntos_priority_t)1U)
+#define HIGH_PRIORITY ((rtos_priority_t)5U)
+#define LOW_PRIORITY ((rtos_priority_t)1U)
 #define LED_BUSY_WAIT_LOOPS 300000U
 #define UART_BUSY_WAIT_LOOPS 1500000U
 
-static ntos_tcb_t led0_task_tcb;
-static ntos_tcb_t uart_task_tcb;
-static ntos_tcb_t led1_task_tcb;
+static rtos_tcb_t led0_task_tcb;
+static rtos_tcb_t uart_task_tcb;
+static rtos_tcb_t led1_task_tcb;
 static _Alignas(8) uint32_t led0_task_stack[STACK_WORDS];
 static _Alignas(8) uint32_t uart_task_stack[STACK_WORDS];
 static _Alignas(8) uint32_t led1_task_stack[STACK_WORDS];
@@ -119,29 +118,29 @@ static void led1_task(void *argument)
 
 int main(void)
 {
-    ntos_status_t status_led0;
-    ntos_status_t status_uart;
-    ntos_status_t status_led1;
+    rtos_status_t status_led0;
+    rtos_status_t status_uart;
+    rtos_status_t status_led1;
 
     /* board_init() đã làm cả GPIO LED lẫn bsp_uart_init() - không gọi lại ở đây. */
     board_init();
-    ntos_init();
+    rtos_init();
 
-    status_led0 = ntos_task_create_static(&led0_task_tcb, "led0_task", led0_task, NULL,
+    status_led0 = rtos_task_create_static(&led0_task_tcb, "led0_task", led0_task, NULL,
         led0_task_stack, STACK_WORDS, HIGH_PRIORITY);
-    status_uart = ntos_task_create_static(&uart_task_tcb, "uart_task", uart_task, NULL,
+    status_uart = rtos_task_create_static(&uart_task_tcb, "uart_task", uart_task, NULL,
         uart_task_stack, STACK_WORDS, HIGH_PRIORITY);
-    status_led1 = ntos_task_create_static(&led1_task_tcb, "led1_task", led1_task, NULL,
+    status_led1 = rtos_task_create_static(&led1_task_tcb, "led1_task", led1_task, NULL,
         led1_task_stack, STACK_WORDS, LOW_PRIORITY);
 
-    if ((status_led0 != NTOS_OK) || (status_uart != NTOS_OK) || (status_led1 != NTOS_OK))
+    if ((status_led0 != RTOS_OK) || (status_uart != RTOS_OK) || (status_led1 != RTOS_OK))
     {
         for (;;)
         {
         }
     }
 
-    ntos_start(&led0_task_tcb);
+    rtos_start(&led0_task_tcb, board_cpu_clock_hz());
 
     for (;;)
     {

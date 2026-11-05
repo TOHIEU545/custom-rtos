@@ -1,38 +1,37 @@
-#include <ntos/ntos.h>
+#include <rtos.h>
 
-#include <board.h>
-#include <uart.h>
+#include <bsp.h>
 
 #include <stddef.h>
 #include <stdint.h>
 
 #define STACK_WORDS ((size_t)96U)
 
-#define REPORTER_PRIORITY ((ntos_priority_t)7U)
-#define SEM_TAKER_PRIORITY ((ntos_priority_t)6U)
-#define SEM_GIVER_PRIORITY ((ntos_priority_t)5U)
-#define QUEUE_SENDER_PRIORITY ((ntos_priority_t)4U)
-#define QUEUE_RECEIVER_PRIORITY ((ntos_priority_t)3U)
-#define PERIODIC_PRIORITY ((ntos_priority_t)2U)
-#define YIELD_PRIORITY ((ntos_priority_t)1U)
+#define REPORTER_PRIORITY ((rtos_priority_t)7U)
+#define SEM_TAKER_PRIORITY ((rtos_priority_t)6U)
+#define SEM_GIVER_PRIORITY ((rtos_priority_t)5U)
+#define QUEUE_SENDER_PRIORITY ((rtos_priority_t)4U)
+#define QUEUE_RECEIVER_PRIORITY ((rtos_priority_t)3U)
+#define PERIODIC_PRIORITY ((rtos_priority_t)2U)
+#define YIELD_PRIORITY ((rtos_priority_t)1U)
 
 #define QUEUE_CAPACITY ((size_t)4U)
 
-#define SEM_PERIOD_TICKS ((ntos_tick_t)3U)
-#define QUEUE_PAUSE_TICKS ((ntos_tick_t)2U)
-#define PERIODIC_TICKS ((ntos_tick_t)7U)
-#define REPORT_PERIOD_TICKS ((ntos_tick_t)2000U)
+#define SEM_PERIOD_TICKS ((rtos_tick_t)3U)
+#define QUEUE_PAUSE_TICKS ((rtos_tick_t)2U)
+#define PERIODIC_TICKS ((rtos_tick_t)7U)
+#define REPORT_PERIOD_TICKS ((rtos_tick_t)2000U)
 
 #define QUEUE_BURST_SIZE ((uint32_t)32U)
 
-static ntos_tcb_t reporter_tcb;
-static ntos_tcb_t sem_giver_tcb;
-static ntos_tcb_t sem_taker_tcb;
-static ntos_tcb_t queue_sender_tcb;
-static ntos_tcb_t queue_receiver_tcb;
-static ntos_tcb_t periodic_tcb;
-static ntos_tcb_t yield_a_tcb;
-static ntos_tcb_t yield_b_tcb;
+static rtos_tcb_t reporter_tcb;
+static rtos_tcb_t sem_giver_tcb;
+static rtos_tcb_t sem_taker_tcb;
+static rtos_tcb_t queue_sender_tcb;
+static rtos_tcb_t queue_receiver_tcb;
+static rtos_tcb_t periodic_tcb;
+static rtos_tcb_t yield_a_tcb;
+static rtos_tcb_t yield_b_tcb;
 
 static _Alignas(8) uint32_t reporter_stack[STACK_WORDS];
 static _Alignas(8) uint32_t sem_giver_stack[STACK_WORDS];
@@ -43,9 +42,9 @@ static _Alignas(8) uint32_t periodic_stack[STACK_WORDS];
 static _Alignas(8) uint32_t yield_a_stack[STACK_WORDS];
 static _Alignas(8) uint32_t yield_b_stack[STACK_WORDS];
 
-static ntos_semaphore_t stress_sem;
+static rtos_semaphore_t stress_sem;
 
-static ntos_queue_t stress_queue;
+static rtos_queue_t stress_queue;
 static uint32_t queue_storage[QUEUE_CAPACITY];
 
 /* Scheduler stress counters. */
@@ -107,7 +106,7 @@ static void yield_a_task(void *argument)
     for (;;)
     {
         g_yield_a++;
-        ntos_yield();
+        rtos_yield();
     }
 }
 
@@ -118,7 +117,7 @@ static void yield_b_task(void *argument)
     for (;;)
     {
         g_yield_b++;
-        ntos_yield();
+        rtos_yield();
     }
 }
 
@@ -131,7 +130,7 @@ static void periodic_task(void *argument)
 
     for (;;)
     {
-        ntos_delay(PERIODIC_TICKS);
+        rtos_delay(PERIODIC_TICKS);
         g_periodic++;
     }
 }
@@ -145,9 +144,9 @@ static void sem_giver_task(void *argument)
 
     for (;;)
     {
-        ntos_delay(SEM_PERIOD_TICKS);
+        rtos_delay(SEM_PERIOD_TICKS);
 
-        if (ntos_sem_give(&stress_sem) == NTOS_OK)
+        if (rtos_sem_give(&stress_sem) == RTOS_OK)
         {
             g_sem_give++;
         }
@@ -165,7 +164,7 @@ static void sem_taker_task(void *argument)
 
     for (;;)
     {
-        if (ntos_sem_take(&stress_sem, NTOS_WAIT_FOREVER) == NTOS_OK)
+        if (rtos_sem_take(&stress_sem, RTOS_WAIT_FOREVER) == RTOS_OK)
         {
             g_sem_take++;
         }
@@ -195,7 +194,7 @@ static void queue_sender_task(void *argument)
 
     for (;;)
     {
-        if (ntos_queue_send(&stress_queue, &value, NTOS_WAIT_FOREVER) == NTOS_OK)
+        if (rtos_queue_send(&stress_queue, &value, RTOS_WAIT_FOREVER) == RTOS_OK)
         {
             g_queue_send++;
 
@@ -210,7 +209,7 @@ static void queue_sender_task(void *argument)
         if (burst_count >= QUEUE_BURST_SIZE)
         {
             burst_count = 0U;
-            ntos_delay(QUEUE_PAUSE_TICKS);
+            rtos_delay(QUEUE_PAUSE_TICKS);
         }
     }
 }
@@ -231,7 +230,7 @@ static void queue_receiver_task(void *argument)
     {
         uint32_t value;
 
-        if (ntos_queue_receive(&stress_queue, &value, NTOS_WAIT_FOREVER) == NTOS_OK)
+        if (rtos_queue_receive(&stress_queue, &value, RTOS_WAIT_FOREVER) == RTOS_OK)
         {
             g_queue_receive++;
 
@@ -250,15 +249,15 @@ static void queue_receiver_task(void *argument)
 
 /* --------------------------------------------------------- */
 
-static void print_stack(const char *name, const ntos_tcb_t *tcb)
+static void print_stack(const char *name, const rtos_tcb_t *tcb)
 {
-    ntos_task_stack_info_t info;
+    rtos_task_stack_info_t info;
 
     bsp_uart_write_string("  ");
     bsp_uart_write_string(name);
     bsp_uart_write_string(": ");
 
-    if (ntos_task_stack_get_info(tcb, &info) != NTOS_OK)
+    if (rtos_task_stack_get_info(tcb, &info) != RTOS_OK)
     {
         bsp_uart_write_string("INFO_ERROR\r\n");
         return;
@@ -297,12 +296,12 @@ static void reporter_task(void *argument)
 
     bsp_uart_write_string("\r\n"
                           "========================================\r\n"
-                          " NTOS FULL SYSTEM STRESS TEST\r\n"
+                          " MyRTOS FULL SYSTEM STRESS TEST\r\n"
                           "========================================\r\n");
 
     for (;;)
     {
-        ntos_delay(REPORT_PERIOD_TICKS);
+        rtos_delay(REPORT_PERIOD_TICKS);
 
         g_report_count++;
 
@@ -325,7 +324,7 @@ static void reporter_task(void *argument)
         bsp_uart_write_string("\r\n---------- REPORT ----------\r\n");
 
         print_value("report=", g_report_count);
-        print_value(" tick=", ntos_tick_get());
+        print_value(" tick=", rtos_tick_get());
         bsp_uart_write_string("\r\n");
 
         print_value("yield_a=", g_yield_a);
@@ -366,51 +365,51 @@ static void reporter_task(void *argument)
 
 static bool create_tasks(void)
 {
-    if (ntos_task_create_static(&reporter_tcb, "reporter", reporter_task, NULL, reporter_stack,
-                                STACK_WORDS, REPORTER_PRIORITY) != NTOS_OK)
+    if (rtos_task_create_static(&reporter_tcb, "reporter", reporter_task, NULL, reporter_stack,
+                                STACK_WORDS, REPORTER_PRIORITY) != RTOS_OK)
     {
         return false;
     }
 
-    if (ntos_task_create_static(&sem_giver_tcb, "sem_giver", sem_giver_task, NULL, sem_giver_stack,
-                                STACK_WORDS, SEM_GIVER_PRIORITY) != NTOS_OK)
+    if (rtos_task_create_static(&sem_giver_tcb, "sem_giver", sem_giver_task, NULL, sem_giver_stack,
+                                STACK_WORDS, SEM_GIVER_PRIORITY) != RTOS_OK)
     {
         return false;
     }
 
-    if (ntos_task_create_static(&sem_taker_tcb, "sem_taker", sem_taker_task, NULL, sem_taker_stack,
-                                STACK_WORDS, SEM_TAKER_PRIORITY) != NTOS_OK)
+    if (rtos_task_create_static(&sem_taker_tcb, "sem_taker", sem_taker_task, NULL, sem_taker_stack,
+                                STACK_WORDS, SEM_TAKER_PRIORITY) != RTOS_OK)
     {
         return false;
     }
 
-    if (ntos_task_create_static(&queue_sender_tcb, "queue_sender", queue_sender_task, NULL,
-                                queue_sender_stack, STACK_WORDS, QUEUE_SENDER_PRIORITY) != NTOS_OK)
+    if (rtos_task_create_static(&queue_sender_tcb, "queue_sender", queue_sender_task, NULL,
+                                queue_sender_stack, STACK_WORDS, QUEUE_SENDER_PRIORITY) != RTOS_OK)
     {
         return false;
     }
 
-    if (ntos_task_create_static(&queue_receiver_tcb, "queue_receiver", queue_receiver_task, NULL,
+    if (rtos_task_create_static(&queue_receiver_tcb, "queue_receiver", queue_receiver_task, NULL,
                                 queue_receiver_stack, STACK_WORDS,
-                                QUEUE_RECEIVER_PRIORITY) != NTOS_OK)
+                                QUEUE_RECEIVER_PRIORITY) != RTOS_OK)
     {
         return false;
     }
 
-    if (ntos_task_create_static(&periodic_tcb, "periodic", periodic_task, NULL, periodic_stack,
-                                STACK_WORDS, PERIODIC_PRIORITY) != NTOS_OK)
+    if (rtos_task_create_static(&periodic_tcb, "periodic", periodic_task, NULL, periodic_stack,
+                                STACK_WORDS, PERIODIC_PRIORITY) != RTOS_OK)
     {
         return false;
     }
 
-    if (ntos_task_create_static(&yield_a_tcb, "yield_a", yield_a_task, NULL, yield_a_stack,
-                                STACK_WORDS, YIELD_PRIORITY) != NTOS_OK)
+    if (rtos_task_create_static(&yield_a_tcb, "yield_a", yield_a_task, NULL, yield_a_stack,
+                                STACK_WORDS, YIELD_PRIORITY) != RTOS_OK)
     {
         return false;
     }
 
-    if (ntos_task_create_static(&yield_b_tcb, "yield_b", yield_b_task, NULL, yield_b_stack,
-                                STACK_WORDS, YIELD_PRIORITY) != NTOS_OK)
+    if (rtos_task_create_static(&yield_b_tcb, "yield_b", yield_b_task, NULL, yield_b_stack,
+                                STACK_WORDS, YIELD_PRIORITY) != RTOS_OK)
     {
         return false;
     }
@@ -423,12 +422,12 @@ static bool create_tasks(void)
 int main(void)
 {
     board_init();
-    ntos_init();
+    rtos_init();
 
-    ntos_sem_init(&stress_sem, 0U, 1U);
+    rtos_sem_init(&stress_sem, 0U, 1U);
 
-    if (ntos_queue_init_static(&stress_queue, queue_storage, sizeof(uint32_t), QUEUE_CAPACITY) !=
-        NTOS_OK)
+    if (rtos_queue_init_static(&stress_queue, queue_storage, sizeof(uint32_t), QUEUE_CAPACITY) !=
+        RTOS_OK)
     {
         for (;;)
         {
@@ -442,7 +441,7 @@ int main(void)
         }
     }
 
-    ntos_start(&reporter_tcb);
+    rtos_start(&reporter_tcb, board_cpu_clock_hz());
 
     for (;;)
     {

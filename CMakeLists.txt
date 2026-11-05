@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.22)
 
-project(ntos LANGUAGES C ASM)
+project(my_rtos LANGUAGES C ASM)
 
 # Project defaults.
 set(CMAKE_C_STANDARD 11)
@@ -8,31 +8,43 @@ set(CMAKE_C_STANDARD_REQUIRED ON)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
 # Build groups.
-option(NTOS_BUILD_EXAMPLES "Build ntos examples" ON)
-option(NTOS_BUILD_TESTS "Build tests" OFF)
+option(RTOS_BUILD_EXAMPLES "Build MyRTOS examples" ON)
+option(RTOS_BUILD_TESTS "Build MyRTOS tests" OFF)
 
-# Common CMake helpers.
-include(cmake/ntos_compiler_options.cmake)
-include(cmake/ntos_firmware.cmake)
+# Common Cortex-M3 build flags for this standalone firmware repository.
+add_compile_options(
+    -mcpu=cortex-m3
+    -mthumb
+    -g
+    -O0
+    -ffunction-sections
+    -fdata-sections
+    -fno-common
+    -Wall
+    -Wextra
+    -Wshadow
+    -Wundef)
 
-# Vendor module: CMSIS + STM32F10x device headers.
-add_subdirectory(cmsis)
+add_link_options(
+    -mcpu=cortex-m3
+    -mthumb
+    -Wl,--gc-sections)
 
 # Platform module: BSP, startup, linker script.
-add_subdirectory(bsp/stm32f10x)
+add_subdirectory(boards/STM32F103)
 
 # OS modules are needed by examples and target tests.
-if(NTOS_BUILD_EXAMPLES OR NTOS_BUILD_TESTS)
+if(RTOS_BUILD_EXAMPLES OR RTOS_BUILD_TESTS)
+    add_subdirectory(port/ARM/cortex-m3)
     add_subdirectory(kernel)
-    add_subdirectory(port/cortex_m3)
 endif()
 
 # Firmware groups.
-if(NTOS_BUILD_EXAMPLES)
+if(RTOS_BUILD_EXAMPLES)
     add_subdirectory(examples)
 endif()
 
-if(NTOS_BUILD_TESTS)
+if(RTOS_BUILD_TESTS)
     add_subdirectory(tests)
 endif()
 
