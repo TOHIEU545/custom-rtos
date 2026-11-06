@@ -5,10 +5,11 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ROOT_DIR="$(cd "${SCRIPT_DIR}/.." && pwd)"
 
-# Firmware và target name do build.sh tạo ra ở lần build gần nhất.
+# Firmware, target và board do build.sh tạo ra ở lần build gần nhất.
 FIRMWARE_DIR="${ROOT_DIR}/build/firmware"
 ELF="${FIRMWARE_DIR}/current.elf"
 TARGET_FILE="${FIRMWARE_DIR}/current.target"
+BOARD_FILE="${FIRMWARE_DIR}/current.board"
 
 GDB_CMDS="${ROOT_DIR}/tools/gdb/my_rtos.gdb"
 
@@ -44,7 +45,14 @@ else
     TARGET="unknown"
 fi
 
+if [[ -s "${BOARD_FILE}" ]]; then
+    BOARD="$(<"${BOARD_FILE}")"
+else
+    BOARD="unknown"
+fi
+
 echo "== gdb-multiarch debug session =="
+echo "Board    : ${BOARD}"
 echo "Target   : ${TARGET}"
 echo "ELF      : ${ELF}"
 echo "GDB cmds : ${GDB_CMDS}"

@@ -5,7 +5,8 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ROOT_DIR="$(cd "${SCRIPT_DIR}/.." && pwd)"
 
-OPENOCD_CFG="${ROOT_DIR}/tools/openocd/stm32f103c8t6.cfg"
+FIRMWARE_DIR="${ROOT_DIR}/build/firmware"
+BOARD_FILE="${FIRMWARE_DIR}/current.board"
 
 cd "${ROOT_DIR}"
 
@@ -22,6 +23,28 @@ if [[ $# -ne 0 ]]; then
     echo "usage: scripts/debug-server.sh" >&2
     exit 1
 fi
+
+# Chọn OpenOCD target theo đúng board của firmware hiện tại.
+if [[ ! -s "${BOARD_FILE}" ]]; then
+    echo "scripts/debug-server.sh: board metadata not found:" >&2
+    echo "  ${BOARD_FILE}" >&2
+    echo "Run scripts/build.sh again before starting the debug server." >&2
+    exit 1
+fi
+
+BOARD="$(<"${BOARD_FILE}")"
+case "${BOARD}" in
+    STM32F103C8T6)
+        OPENOCD_CFG="${ROOT_DIR}/tools/openocd/stm32f103c8t6.cfg"
+        ;;
+    STM32F411E-DISCO)
+        OPENOCD_CFG="${ROOT_DIR}/tools/openocd/stm32f411e-disco.cfg"
+        ;;
+    *)
+        echo "scripts/debug-server.sh: unsupported board: ${BOARD}" >&2
+        exit 1
+        ;;
+esac
 
 # Thiếu file cấu hình OpenOCD thì không thể kết nối board.
 if [[ ! -f "${OPENOCD_CFG}" ]]; then
@@ -41,6 +64,7 @@ if [[ "${ALREADY_SPAWNED}" -eq 0 ]]; then
 fi
 
 echo "== OpenOCD debug server =="
+echo "Board    : ${BOARD}"
 echo "Config   : ${OPENOCD_CFG}"
 echo "GDB port : 3333"
 echo

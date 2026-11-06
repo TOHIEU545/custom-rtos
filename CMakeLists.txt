@@ -28,11 +28,16 @@ add_link_options(
 # Select one concrete board. Each board chooses its matching CPU port and owns
 # its device define, startup code and linker script.
 set(RTOS_BOARD "STM32F103C8T6" CACHE STRING "Target board")
-set_property(CACHE RTOS_BOARD PROPERTY STRINGS STM32F103C8T6)
+set_property(CACHE RTOS_BOARD PROPERTY STRINGS
+    STM32F103C8T6
+    STM32F411E-DISCO)
 
 if(RTOS_BOARD STREQUAL "STM32F103C8T6")
     add_subdirectory(port/ARM/cortex-m3)
     add_subdirectory(boards/STM32F103C8T6)
+elseif(RTOS_BOARD STREQUAL "STM32F411E-DISCO")
+    add_subdirectory(port/ARM/cortex-m4)
+    add_subdirectory(boards/STM32F411E-DISCO)
 else()
     message(FATAL_ERROR "Unsupported RTOS_BOARD: ${RTOS_BOARD}")
 endif()

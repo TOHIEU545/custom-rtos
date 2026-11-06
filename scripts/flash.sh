@@ -5,12 +5,11 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ROOT_DIR="$(cd "${SCRIPT_DIR}/.." && pwd)"
 
-# Firmware và target name do build.sh tạo ra ở lần build gần nhất.
+# Firmware, target và board do build.sh tạo ra ở lần build gần nhất.
 FIRMWARE_DIR="${ROOT_DIR}/build/firmware"
 ELF="${FIRMWARE_DIR}/current.elf"
 TARGET_FILE="${FIRMWARE_DIR}/current.target"
-
-OPENOCD_CFG="${ROOT_DIR}/tools/openocd/stm32f103c8t6.cfg"
+BOARD_FILE="${FIRMWARE_DIR}/current.board"
 
 cd "${ROOT_DIR}"
 
@@ -26,9 +25,31 @@ if [[ ! -s "${ELF}" ]]; then
     echo "  ${ELF}" >&2
     echo >&2
     echo "Build one first, for example:" >&2
-    echo "  ./scripts/build.sh lab_exception_frame" >&2
+    echo "  ./scripts/build.sh example_port_validation STM32F411E-DISCO" >&2
     exit 1
 fi
+
+# Không đoán board từ tên target hoặc ELF: luôn dùng metadata do build.sh ghi.
+if [[ ! -s "${BOARD_FILE}" ]]; then
+    echo "scripts/flash.sh: board metadata not found:" >&2
+    echo "  ${BOARD_FILE}" >&2
+    echo "Run scripts/build.sh again before flashing." >&2
+    exit 1
+fi
+
+BOARD="$(<"${BOARD_FILE}")"
+case "${BOARD}" in
+    STM32F103C8T6)
+        OPENOCD_CFG="${ROOT_DIR}/tools/openocd/stm32f103c8t6.cfg"
+        ;;
+    STM32F411E-DISCO)
+        OPENOCD_CFG="${ROOT_DIR}/tools/openocd/stm32f411e-disco.cfg"
+        ;;
+    *)
+        echo "scripts/flash.sh: unsupported board: ${BOARD}" >&2
+        exit 1
+        ;;
+esac
 
 # Thiếu file cấu hình OpenOCD thì không thể kết nối board.
 if [[ ! -f "${OPENOCD_CFG}" ]]; then
@@ -60,6 +81,7 @@ if command -v file >/dev/null 2>&1; then
 fi
 
 echo "== firmware to flash =="
+echo "Board       : ${BOARD}"
 echo "Target      : ${TARGET}"
 echo "ELF         : ${ELF}"
 echo "OpenOCD cfg : ${OPENOCD_CFG}"
@@ -72,5 +94,6 @@ openocd \
 
 echo
 echo "== flash successful =="
+echo "Board  : ${BOARD}"
 echo "Target : ${TARGET}"
 echo "ELF    : ${ELF}"
