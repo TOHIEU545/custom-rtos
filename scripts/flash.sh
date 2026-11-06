@@ -10,7 +10,7 @@ FIRMWARE_DIR="${ROOT_DIR}/build/firmware"
 ELF="${FIRMWARE_DIR}/current.elf"
 TARGET_FILE="${FIRMWARE_DIR}/current.target"
 
-OPENOCD_CFG="${ROOT_DIR}/tools/openocd/stm32f103.cfg"
+OPENOCD_CFG="${ROOT_DIR}/tools/openocd/stm32f103c8t6.cfg"
 
 cd "${ROOT_DIR}"
 

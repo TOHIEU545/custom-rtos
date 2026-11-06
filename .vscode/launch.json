@@ -13,7 +13,7 @@
             "interface": "swd",
 
             "configFiles": [
-                "${workspaceFolder}/tools/openocd/stm32f103.cfg"
+                "${workspaceFolder}/tools/openocd/stm32f103c8t6.cfg"
             ],
 
             "gdbPath": "gdb-multiarch",

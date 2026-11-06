@@ -2,7 +2,7 @@
 #define BSP_H
 
 /** @file bsp.h
- *  @brief Board support and peripheral helpers for STM32F103.
+ *  @brief Board support and peripheral helpers for STM32F103C8T6.
  */
 #include <stdbool.h>
 #include <stddef.h>

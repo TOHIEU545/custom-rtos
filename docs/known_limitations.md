@@ -15,7 +15,7 @@ tính đơn giản, khả năng đọc source và hiểu cơ chế bên trong.
 | Synchronization | `timeout` của `rtos_sem_take()`/`rtos_queue_send()`/`rtos_queue_receive()` chỉ phân biệt "không chờ" (`RTOS_NO_WAIT`) và "chờ vô hạn"; mọi giá trị khác 0 đều bị xử lý như chờ vô hạn, không có timed blocking hữu hạn thật sự. |
 | Timing | Tick rate cố định (`RTOS_TICK_RATE_HZ`) tại compile-time; SysTick luôn chạy, không có tickless idle. |
 | Timing | Một lần `rtos_delay()` tối đa `INT32_MAX` tick, do phép so sánh tick wraparound-safe dùng signed subtraction. |
-| Portability | Chỉ hỗ trợ ARM Cortex-M3 (`port/ARM/cortex-m3/`) và board STM32F103 (`boards/STM32F103/`); không có port cho CPU/board khác. |
+| Portability | Chỉ hỗ trợ ARM Cortex-M3 (`port/ARM/cortex-m3/`) và board STM32F103C8T6 (`boards/STM32F103C8T6/`); không có port cho CPU/board khác. |
 | Portability | Chỉ single-core; không hỗ trợ SMP/multi-core. |
 
 Các giới hạn này là giới hạn có chủ đích của phiên bản hiện tại, không phải

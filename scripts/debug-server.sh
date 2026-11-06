@@ -5,7 +5,7 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ROOT_DIR="$(cd "${SCRIPT_DIR}/.." && pwd)"
 
-OPENOCD_CFG="${ROOT_DIR}/tools/openocd/stm32f103.cfg"
+OPENOCD_CFG="${ROOT_DIR}/tools/openocd/stm32f103c8t6.cfg"
 
 cd "${ROOT_DIR}"
 

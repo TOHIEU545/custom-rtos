@@ -236,7 +236,7 @@ Cortex-M3 có hai stack pointer vật lý riêng biệt, chỉ một trong hai l
 MyRTOS dùng đúng mô hình chuẩn cho RTOS trên Cortex-M3: **task chạy Thread
 mode và dùng PSP; mọi exception handler (SVC, PendSV, SysTick) chạy Handler
 mode và dùng MSP**. MSP được CPU tự nạp từ word đầu tiên của vector table
-(`_estack`, tức đỉnh RAM — xem `boards/STM32F103/linker.ld`) ngay lúc
+(`_estack`, tức đỉnh RAM — xem `boards/STM32F103C8T6/linker.ld`) ngay lúc
 reset, trước khi `main()` chạy.
 
 Lý do thiết kế này tốt cho một RTOS:

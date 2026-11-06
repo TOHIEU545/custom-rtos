@@ -9,12 +9,9 @@ set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
 # Build groups.
 option(RTOS_BUILD_EXAMPLES "Build MyRTOS examples" ON)
-option(RTOS_BUILD_TESTS "Build MyRTOS tests" OFF)
 
-# Common Cortex-M3 build flags for this standalone firmware repository.
+# Common build flags shared by every supported architecture.
 add_compile_options(
-    -mcpu=cortex-m3
-    -mthumb
     -g
     -O0
     -ffunction-sections
@@ -26,25 +23,25 @@ add_compile_options(
     -Wundef)
 
 add_link_options(
-    -mcpu=cortex-m3
-    -mthumb
     -Wl,--gc-sections)
 
-# Platform module: BSP, startup, linker script.
-add_subdirectory(boards/STM32F103)
+# Select one concrete board. Each board chooses its matching CPU port and owns
+# its device define, startup code and linker script.
+set(RTOS_BOARD "STM32F103C8T6" CACHE STRING "Target board")
+set_property(CACHE RTOS_BOARD PROPERTY STRINGS STM32F103C8T6)
 
-# OS modules are needed by examples and target tests.
-if(RTOS_BUILD_EXAMPLES OR RTOS_BUILD_TESTS)
+if(RTOS_BOARD STREQUAL "STM32F103C8T6")
     add_subdirectory(port/ARM/cortex-m3)
-    add_subdirectory(kernel)
+    add_subdirectory(boards/STM32F103C8T6)
+else()
+    message(FATAL_ERROR "Unsupported RTOS_BOARD: ${RTOS_BOARD}")
 endif()
+
+# Portable kernel: it receives architecture requirements through rtos_port.
+add_subdirectory(kernel)
 
 # Firmware groups.
 if(RTOS_BUILD_EXAMPLES)
-    add_subdirectory(examples)
-endif()
-
-if(RTOS_BUILD_TESTS)
-    add_subdirectory(tests)
+    add_subdirectory(examples/${RTOS_BOARD})
 endif()
 

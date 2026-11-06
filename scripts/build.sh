@@ -1,24 +1,27 @@
 #!/usr/bin/env sh
 set -eu
 
-# Bắt buộc phải truyền đúng 1 tham số là tên target cần build.
-if [ "$#" -ne 1 ]; then
-    echo "usage: scripts/build.sh <firmware-target>" >&2
-    echo "  e.g. scripts/build.sh lab_exception_frame" >&2
+# Tham số thứ hai là board; bỏ qua thì dùng board hiện tại của project.
+if [ "$#" -lt 1 ] || [ "$#" -gt 2 ]; then
+    echo "usage: scripts/build.sh <firmware-target> [board]" >&2
+    echo "  e.g. scripts/build.sh example_scheduler_demo STM32F103C8T6" >&2
     exit 1
 fi
 
 TARGET="$1"
+BOARD="${2:-STM32F103C8T6}"
 
 # Xác định thư mục gốc project dựa trên vị trí thực của script,
 # để chạy đúng dù người dùng gọi script từ đâu.
 SCRIPT_DIR=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
 ROOT_DIR=$(CDPATH= cd -- "${SCRIPT_DIR}/.." && pwd)
 
-BUILD_DIR="${ROOT_DIR}/build"
-FIRMWARE_DIR="${BUILD_DIR}/firmware"
+BUILD_ROOT="${ROOT_DIR}/build"
+BUILD_DIR="${BUILD_ROOT}/${BOARD}"
+FIRMWARE_DIR="${BUILD_ROOT}/firmware"
 CURRENT_ELF="${FIRMWARE_DIR}/current.elf"
 CURRENT_TARGET="${FIRMWARE_DIR}/current.target"
+CURRENT_BOARD="${FIRMWARE_DIR}/current.board"
 
 cd "${ROOT_DIR}"
 
@@ -27,8 +30,8 @@ cmake \
     -S "${ROOT_DIR}" \
     -B "${BUILD_DIR}" \
     -DCMAKE_TOOLCHAIN_FILE="${ROOT_DIR}/cmake/arm-none-eabi-toolchain.cmake" \
-    -DRTOS_BUILD_EXAMPLES=ON \
-    -DRTOS_BUILD_TESTS=ON
+    -DRTOS_BOARD="${BOARD}" \
+    -DRTOS_BUILD_EXAMPLES=ON
 
 # Build đúng target được yêu cầu.
 cmake --build "${BUILD_DIR}" --target "${TARGET}"
@@ -100,6 +103,7 @@ mkdir -p "${FIRMWARE_DIR}"
 
 cp "${ELF}" "${CURRENT_ELF}"
 printf '%s\n' "${TARGET}" > "${CURRENT_TARGET}"
+printf '%s\n' "${BOARD}" > "${CURRENT_BOARD}"
 
 if [ ! -s "${CURRENT_ELF}" ]; then
     echo "scripts/build.sh: failed to create ${CURRENT_ELF}" >&2
@@ -108,6 +112,7 @@ fi
 
 echo
 echo "== current firmware =="
+echo "Board      : ${BOARD}"
 echo "Target     : ${TARGET}"
 echo "Source ELF : ${ELF}"
 echo "Current ELF: ${CURRENT_ELF}"
